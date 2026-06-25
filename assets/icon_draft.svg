@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <!-- <linearGradient id="GradBG" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#FA5571" stop-opacity="1" />
+      <stop offset="20%" stop-color="#FA8D55" stop-opacity="1" />
+      <stop offset="80%" stop-color="#FA8D55" stop-opacity="1" />
+      <stop offset="100%" stop-color="#FADF55" stop-opacity="1" />
+    </linearGradient> -->
+    <!-- FA7163 -->
+    <linearGradient id="GradBG" x1="0" x2="0.5" y1="0" y2="1">
+      <stop offset="0%" stop-color="#FA5571" stop-opacity="1" />
+      <stop offset="20%" stop-color="#FA5571" stop-opacity="1" />
+      <stop offset="80%" stop-color="#FA8D55" stop-opacity="1" />
+      <stop offset="100%" stop-color="#FA8D55" stop-opacity="1" />
+    </linearGradient>
+    <linearGradient id="GradMain" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="1" />
+      <stop offset="20%" stop-color="#ffffff" stop-opacity="1" />
+      <stop offset="90%" stop-color="#ffffff" stop-opacity="1" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="1" />
+    </linearGradient>
+  </defs>
+  <style>
+    #rect1 {
+      fill: url("#GradBG");
+    }
+    #rect2 {
+      fill: url("#GradMain");
+    }
+  </style>
+  
+  <rect id="rect1" width="448" height="448" rx="100" 
+    transform="translate(32,32) scale(1)"/>
+
+  <path d="
+    M100 256 h312 
+    a28 28 0 0 1 15 50    
+    L310 400
+    a100 120 0 0 1 -108 0
+    L85 306
+    a28 28 0 0 1 15 -50
+    " 
+    transform="rotate(90 256 256) translate(30,-100) scale(0.8)" fill="#FFF3F0"/>
+
+  <path d="
+    M100 256 h312 
+    a28 28 0 0 1 15 50    
+    L310 400
+    a100 120 0 0 1 -108 0
+    L85 306
+    a28 28 0 0 1 15 -50
+    " 
+    transform="rotate(-90 256 256) translate(30,-100) scale(0.8)" fill="#41231E"/>
+  
+  <!-- <path d="
+    M100 256 h312 
+    a28 28 0 0 1 15 50    
+    L310 400
+    a100 120 0 0 1 -108 0
+    L85 306
+    a28 28 0 0 1 15 -50
+    " 
+    transform="translate(-51,-48) scale(1.2)" id="rect2"/> -->
+  <!-- <rect opacity="1" x="220" y="180" width="80" height="80" rx="20" 
+    transform="rotate(-30 220 180) scale(1.15)" id="rect2"/>
+  <rect x="170" y="35" width="120" height="120" rx="20" 
+    transform="rotate(30 170 35) scale(1.15)"  id="rect2"/> -->
+  
+  <!-- <path d="
+    M100 256 h312 
+    a28 28 0 0 1 15 50    
+    L310 400
+    a100 120 0 0 1 -108 0
+    L85 306
+    a28 28 0 0 1 15 -50
+    " 
+    transform="translate(0,30)" fill="white"/>
+  <rect opacity="1" x="260" y="200" width="80" height="80" rx="20" 
+    transform="rotate(-30 260 200)" fill="white"/>
+  <rect x="210" y="80" width="120" height="120" rx="20" 
+    transform="rotate(30 210 80)" fill="white"/> -->
+  
+    
+  <!-- <path d="M19.375 36.7818V100.625C19.375 102.834 21.1659 104.625 23.375 104.625H87.2181C90.7818 104.625 92.5664 100.316 90.0466 97.7966L26.2034 33.9534C23.6836 31.4336 19.375 33.2182 19.375 36.7818Z" fill="white"/>
+  <circle cx="63.2109" cy="37.5391" r="18.1641" fill="black"/>
+  <rect opacity="0.4" x="81.1328" y="80.7198" width="17.5687" height="17.3876" rx="4" transform="rotate(-45 81.1328 80.7198)" fill="#FDBA74"/> -->
+</svg>
