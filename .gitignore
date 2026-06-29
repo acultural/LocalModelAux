@@ -8,3 +8,9 @@ cache.json
 build
 dist
 *.spec
+
+# misc
+misc
+
+# python
+__pycache__

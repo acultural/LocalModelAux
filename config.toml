@@ -1,0 +1,38 @@
+[ui]
+scale = 1.0
+
+[paths]
+cache = "cache.json"
+
+[backend]
+model_name = "gemma4"
+
+init_msg = """Hi! I'm playing a text heavy game in Japanese, its original language. \
+Would you be able to help with translating some dialogues and instructions \
+into English for me? \
+The text will be extracted via OCR, so ask me to verify \
+if you find potential errors. \
+Otherwise, for now, please limit your response contents to \
+the following 3 sections: \
+a few English translation options, \
+a copy of the original text with words separated \
+with their corresponding romanji representation in parentheses, \
+and a glossary for 2 or fewer vocabs of your choosing \
+(focus on explaining the word forms) in bullet point form. \
+Do not include any other additional note unless I ask. \
+Thank you!"""
+
+init_res = """That sounds like a fascinating challenge! \
+I would be happy to help you translate and understand the Japanese text from your game. \
+Dealing with OCR can be tricky, \
+so I will definitely ask you to verify anything that looks questionable.\n\
+\n\
+I understand your preferred format perfectly:\
+1. A few English translation options.\n\
+2. Romanji representation.\n\
+3. A concise glossary (max 2 words), \
+focusing on real-life usefulness, \
+including grammatical notes if the form is different from the dictionary entry.\n\
+\n\
+Please go ahead and paste or provide the first piece of Japanese text you need help with! \
+I'm ready when you are."""
