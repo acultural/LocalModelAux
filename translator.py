@@ -1,79 +1,85 @@
 import sys
-print(sys.version)
+# print(sys.version)
+# import platform
+# print([platform.system(),platform.release()])
 
+# ollama backend access
 from ollama import chat
 
-import pyperclip
-
-import tkinter as tk
-from tkinter.scrolledtext import ScrolledText
-import threading
-import time
-from ctk_markdown import CTkMarkdown
-import customtkinter as ctk
-
-
-# root = tk.Tk()
-
-root = ctk.CTk()
-
-# window setup
-root.title('Clip Translator')
-
-window_width = 800
-window_height = 300
-
-# get the screen dimension
-screen_width = root.winfo_screenwidth()
-screen_height = root.winfo_screenheight()
-
-# find the center point
-center_x = int(screen_width/2 - window_width / 2)
-center_y = int(screen_height/2 - window_height / 2)
-
-# set the position of the window to the center of the screen
-root.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
-
-root.resizable(True, True)
-root.attributes('-alpha', 0.8)
-root.attributes('-topmost', 1)
-# Ensure icon is in the assets folder relative to your script.
-root.iconbitmap('./assets/icon.ico')
-# root.iconphoto(False, tk.PhotoImage(file='./assets/icon.png'))
-
-# # Remove the menubar
-# root.config(menu="")
-
-# root.grid_columnconfigure(0, weight=1)
-# root.grid_rowconfigure(0, weight=1)
-
-
-# place a label on the root window
-# message = tk.Label(frame_message, text="BOOTING UP...", font=("Monofur Nerd Font Mono", 16), justify="left")
-
-
-# message.grid(row=0, column=0, padx=20, pady=10, sticky="ew")
-
-# message.pack(pady=16)
-# message.pack(fill="both", expand=False, padx=16, pady=6)
-
-# text = ScrolledText(root, width=80,  height=8)
-# text.pack(padx = 10, pady=10,  fill=tk.BOTH, side=tk.LEFT, expand=True)
-
-
-# label = tk.Label(root, text="", font=("Helvetica", 14))
-# label.pack(pady=20)
-
-
-
-
+# database
 from tinydb import TinyDB, Query
 db = TinyDB('cache.json')
 # import json
 
+# clipboard access (tkinter has one too)
+import pyperclip
+
+# gui
+import tkinter as tk
+from tkinter.scrolledtext import ScrolledText
+from ctk_markdown import CTkMarkdown
+import customtkinter as ctk
+
+# tasking
+import threading
+import time
+
+# resources linking
+import pathlib
+src_dir = pathlib.Path(__file__).parent.resolve()
+
+
+# window setup
+root = ctk.CTk()
+root.title('Clip Translator')
+window_width = 800
+window_height = 300
+## get the screen dimension
+screen_width = root.winfo_screenwidth()
+screen_height = root.winfo_screenheight()
+## find the center point
+center_x = int(screen_width/2 - window_width / 2)
+center_y = int(screen_height/2 - window_height / 2)
+## set the position of the window to the center of the screen
+root.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
+root.resizable(True, True)
+root.attributes('-alpha', 0.8)
+root.attributes('-topmost', 1)
+root.iconbitmap(src_dir/'assets'/'icon.ico')
+
+# title bar customizaton
+try:
+    # https://github.com/TomSchimansky/CustomTkinter/discussions/1011
+    from ctypes import windll, byref, sizeof, c_int
+
+    HWND = windll.user32.GetParent(root.winfo_id()) # the window we want to change
+
+    """
+    DWMWA_ATTRIBUTES (for windows 11 title bar) 
+    CAPTION COLOR (HEADER) = 35
+    BORDER COLOR = 34
+    TITLE COLOR = 36
+    """
+
+    DWMWA_ATTRIBUTE = 35
+
+    COLOR = 0x00222222 # color should be in hex order: 0x00bbggrr
+
+    res = windll.dwmapi.DwmSetWindowAttribute(HWND, DWMWA_ATTRIBUTE, byref(c_int(COLOR)), sizeof(c_int))
+    if (res !=0 ) :
+        # print(f"trying to set title bar color but failed, with error code: {res}. This is okay.")
+        pass
+except Exception as e:
+    # print(f"trying to set title bar color but failed, That's okay.")
+    pass
+
+
+
+# # status message?
+# message = tk.Label(frame_message, text="BOOTING UP...", font=("Monofur Nerd Font Mono", 16), justify="left")
+
 
 # status and state init
-
 is_running = True
 is_listening_to_clipboard = False
 clipboard_text = pyperclip.paste()
@@ -147,22 +153,12 @@ message.grid(row=0, column=0, padx=10, pady=(0,10), sticky="ew")
 # layout helpers
 
 def adjust_input_height(new_height=0):
-    # # Get the number of lines in the Text widget
-    # line_count = int(message.index("end-1c").split('.')[0])
-    # # Set height dynamically, with a minimum of 2 and maximum of 10 lines
-    # new_height = min(max(line_count, 2), 10)
-    # message.configure(height=new_height)
     if (new_height <= 0):
         lines = message.tk.call((message._textbox, "count", "-update", "-lines", "1.0", "end"))
         lines_disp = message.tk.call((message._textbox, "count", "-update", "-displaylines", "1.0", "end"))
         line_count = lines_disp
         new_height = min(max(line_count, 1), 10)
-        # print(lines,lines_disp)
-    # print(message._get_widget_scaling())
-    # print(message.winfo_height())
-    # print(new_height)
     message.configure(height=new_height*(16+0.8)+14.2+1/3)
-    # print(message.winfo_height(), message._current_height)
 def adjust_input_height_event(event):
     adjust_input_height()
 
@@ -172,9 +168,6 @@ message.bind("<KeyRelease>",adjust_input_height_event) # size calculation always
 # -> Press will create a scroll bar every new line, and won't update until the next event
 #    where as Release will create a new line as soon as the user lets go of the key.
 #    When only one event can be used (to save computation), Release feels more responsive
-
-# TODO: send custom message
-# message.bind("<KeyRelease>",adjust_input_height_event)
 
 
 # # closing
@@ -241,6 +234,35 @@ button_next_msg.place(relx=0.0, x=280, rely=0.5, anchor="e")
 
 
 # execution prep
+
+def send_request(msg):
+    global messages
+    new_input = {'role': 'user', 'content': msg}
+    busyness_hint_label.configure(text_color="#FA8C55")
+
+    response = chat(
+        model='gemma4',
+        messages=[*messages, new_input],
+        think=False,
+        stream=False,
+    )
+    busyness_hint_label.configure(text_color="#55FAE7")
+
+    if (response.message.content):
+        new_response = {'role': 'assistant', 'content': response.message.content}
+        messages += [
+            new_input,
+            new_response,
+        ]
+
+        renderer.set_markdown(response.message.content)
+
+        db.insert({"usr":new_input,"res":new_response})
+        curr_convo_idx = len(db)
+        slider_msg.set(len(db))
+        slider_msg.configure(number_of_steps=len(db)-1)
+    else:
+        renderer.set_markdown("... got no response ... ")
 
 def run_in_thread():
     global is_running
@@ -338,36 +360,19 @@ def run_in_thread():
             adjust_input_height()
             # renderer.set_markdown(clipboard_text)
 
-            new_input = {'role': 'user', 'content': clipboard_text}
-            busyness_hint_label.configure(text_color="#FA8C55")
-
-            response = chat(
-                model='gemma4',
-                messages=[*messages, new_input],
-                think=False,
-                stream=False,
-            )
-            busyness_hint_label.configure(text_color="#55FAE7")
-
-            if (response.message.content):
-                new_response = {'role': 'assistant', 'content': response.message.content}
-                messages += [
-                    new_input,
-                    new_response,
-                ]
-
-                renderer.set_markdown(response.message.content)
-
-                db.insert({"usr":new_input,"res":new_response})
-                curr_convo_idx = len(db)
-                slider_msg.set(len(db))
-                slider_msg.configure(number_of_steps=len(db)-1)
-            else:
-                renderer.set_markdown("... got no response ... ")
+            send_request(clipboard_text)
 
 
         time.sleep(0.01)
 
+# send custom message
+def send_custom_message(event):
+    # print("messaging")
+    # print(message.get("1.0", "end-1c"))
+    # print(event)
+    send_request(message.get("1.0", "end-1c"))
+    return "break" # this prevents further bound functions from being invoked. (tkinter inline doc)
+message.bind("<Shift-Return>",send_custom_message)
 
 
 thread = threading.Thread(target=run_in_thread, daemon=True)
@@ -385,73 +390,7 @@ root.mainloop()
 
 
 
-# Below are some reference materials
-# Simple SVG visual editor
-# https://www.svgviewer.dev/
-# Color picler
-# https://htmlcolorcodes.com/color-picker/
-# About SVG gradient
-# https://developer.mozilla.org/en-US/docs/Web/SVG/Tutorials/SVG_from_scratch/Gradients
-# The SVG path guide I always use
-# https://www.joshwcomeau.com/svg/interactive-guide-to-paths/
-# The logo's SVG code
-# <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
-# <defs>
-#     <linearGradient id="GradBG" x1="0" x2="0" y1="0" y2="1">
-#     <stop offset="0%" stop-color="#FA5571" stop-opacity="1" />
-#     <stop offset="50%" stop-color="#FA8D55" stop-opacity="1" />
-#     <stop offset="100%" stop-color="#FADF55" stop-opacity="1" />
-#     </linearGradient>
-#     <linearGradient id="GradMain" x1="0" x2="0" y1="0" y2="1">
-#     <stop offset="0%" stop-color="#55FADE" stop-opacity="1" />
-#     <stop offset="50%" stop-color="#55C3FA" stop-opacity="1" />
-#     <stop offset="100%" stop-color="#5571FA" stop-opacity="1" />
-#     </linearGradient>
-# </defs>
-# <style>
-#     #rect1 {
-#     fill: url("#GradBG");
-#     }
-#     #rect2 {
-#     fill: url("#GradMain");
-#     }
-# </style>
-
-# <rect id="rect1" width="512" height="512" rx="64"/>
-
-# <path d="
-#     M100 256 h312 
-#     a28 28 0 0 1 15 50    
-#     L310 400
-#     a100 120 0 0 1 -108 0
-#     L85 306
-#     a28 28 0 0 1 15 -50
-#     " 
-#     transform="translate(-51,-48) scale(1.2)" id="rect2"/>
-# <rect opacity="1" x="220" y="180" width="80" height="80" rx="20" 
-#     transform="rotate(-30 220 180) scale(1.15)" id="rect2"/>
-# <rect x="170" y="35" width="120" height="120" rx="20" 
-#     transform="rotate(30 170 35) scale(1.15)"  id="rect2"/>
-
-# <path d="
-#     M100 256 h312 
-#     a28 28 0 0 1 15 50    
-#     L310 400
-#     a100 120 0 0 1 -108 0
-#     L85 306
-#     a28 28 0 0 1 15 -50
-#     " 
-#     transform="translate(0,30)" fill="white"/>
-# <rect opacity="1" x="260" y="200" width="80" height="80" rx="20" 
-#     transform="rotate(-30 260 200)" fill="white"/>
-# <rect x="210" y="80" width="120" height="120" rx="20" 
-#     transform="rotate(30 210 80)" fill="white"/>
-
-    
-# <!-- <path d="M19.375 36.7818V100.625C19.375 102.834 21.1659 104.625 23.375 104.625H87.2181C90.7818 104.625 92.5664 100.316 90.0466 97.7966L26.2034 33.9534C23.6836 31.4336 19.375 33.2182 19.375 36.7818Z" fill="white"/>
-# <circle cx="63.2109" cy="37.5391" r="18.1641" fill="black"/>
-# <rect opacity="0.4" x="81.1328" y="80.7198" width="17.5687" height="17.3876" rx="4" transform="rotate(-45 81.1328 80.7198)" fill="#FDBA74"/> -->
-# </svg>
+# Below are some reference code snippets
 
 
 # Response streaming

@@ -3,3 +3,8 @@ localModelAux
 
 # generated files
 cache.json
+
+# build
+build
+dist
+*.spec
