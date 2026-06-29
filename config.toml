@@ -1,5 +1,6 @@
 [ui]
 scale = 1.0
+font = "Monofur Nerd Font Mono"
 
 [paths]
 cache = "cache.json"
@@ -22,17 +23,12 @@ and a glossary for 2 or fewer vocabs of your choosing \
 Do not include any other additional note unless I ask. \
 Thank you!"""
 
-init_res = """That sounds like a fascinating challenge! \
-I would be happy to help you translate and understand the Japanese text from your game. \
-Dealing with OCR can be tricky, \
-so I will definitely ask you to verify anything that looks questionable.\n\
+init_res = """Understood. I will limit my response to exactly these three sections:\n\
 \n\
-I understand your preferred format perfectly:\
-1. A few English translation options.\n\
-2. Romanji representation.\n\
-3. A concise glossary (max 2 words), \
-focusing on real-life usefulness, \
-including grammatical notes if the form is different from the dictionary entry.\n\
+1. English Translation Options\n\
+2. Original Text with Romanization\n\
+3. Glossary\n\
 \n\
-Please go ahead and paste or provide the first piece of Japanese text you need help with! \
-I'm ready when you are."""
+I will also always prompt you to verify the text if it appears corrupted due to OCR, and otherwise proceed directly with the structure above without any extra notes.\n\
+\n\
+Please provide the Japanese text when you are ready."""

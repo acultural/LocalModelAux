@@ -8,7 +8,8 @@ from typing import Tuple
 from ollama import chat
 
 # database
-from tinydb import TinyDB, Query # TODO: switch to sqlite
+from tinydb import TinyDB, Query # TODO: switch to sqlite maybe
+import sqlite3
 # import json
 
 # clipboard access (tkinter has one too)
@@ -17,7 +18,8 @@ import pyperclip
 # gui
 import tkinter as tk
 from tkinter.scrolledtext import ScrolledText
-from ctk_markdown import CTkMarkdown
+# from ctk_markdown import CTkMarkdown
+from external.ctk_markdown import CTkMarkdown
 import customtkinter as ctk
 
 # tasking
@@ -36,18 +38,19 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         # config loading
-        with open(SRC_DIR/"config.toml","rb") as f:
-            config = tomlkit.load(f)
+        self._load_config()
 
         # frontend basics
         self._setup_window()
+        self._font_customization()
         # TODO: window scaling is a bit weird; ctk makes a bunch of internal adjustments
-        self.ui_scale = float(config["ui"]["scale"])
+        self.ui_scale = self.config["ui"]["scale"]
         ctk.set_widget_scaling(1)
         ctk.set_window_scaling(1)
 
         # status and state init
         self.is_running = True
+        self._has_custom_msg = False
         self.is_listening_to_clipboard = True
         self.clipboard_text = pyperclip.paste() # TODO: below
         # above: after idling, this (not here) can sometimes throw an error;
@@ -55,93 +58,84 @@ class App(ctk.CTk):
         self.messages = []
 
         # model_selection
-        self._setup_model(config)
+        self._setup_model()
 
         # history query
-        # self.cache_path = 'cache.json'
-        self.cache_path = config["paths"]["cache"]
-        self.db = TinyDB(self.cache_path) # TODO: replace with sqlite
-        # the first displayed result is not in fact recorded, so we use next_id here
-        self.curr_convo_idx = self.db._get_next_id()
+        self._setup_db()
         # frontend setup
         self._setup_layout()
 
         # connect to backend and start the backend functional loop
-        # self.run()
+        self.thread = threading.Thread(target=self.run_in_thread, daemon=True)
+        self.run()
         # TODO: add the ability to reset the session
         # TODO: add the ability to save setting changes the model setup
         # TODO: remember to add the config file when building, and save the build script
 
-    def _setup_model(self,config):
-        self.model_name = config["backend"]["model_name"]
-        self.initializing_message = {'role': 'user', 'content': config["backend"]["init_msg"]}
-        self.initializing_response = {'role': 'assistant', 'content': config["backend"]["init_res"]}
+    def _setup_model(self):
+        self.model_name = self.config["backend"]["model_name"]
+        self.initializing_message = {'role': 'user', 'content': self.config["backend"]["init_msg"]}
+        self.initializing_response = {'role': 'assistant', 'content': self.config["backend"]["init_res"]}
         self.use_canned_init_response = False
 
-        # self.model_name = 'gemma4'
-        # self.initializing_message = {'role': 'user', 'content': 
-        #     r"Hi! I'm playing a text heavy game in Japanese, its original language. \
-        #     Would you be able to help with translating some dialogues and instructions \
-        #     into English for me? \
-        #     The text will be extracted via OCR, so ask me to verify \
-        #     if you find potential errors. \
-        #     Otherwise, for now, please limit your response contents to \
-        #     the following 3 sections: \
-        #     a few English translation options, a romanji representation, \
-        #     and a glossary for 2 or fewer vocabs of your choosing \
-        #     (select by real life usefullness) in bullet point form. \
-        #     I'd like to learn a few words at a time. \
-        #     (Please also explain the word form if it differs from the dictionaty form.) \
-        #     Do not include any other additional note. \
-        #     Thank you!"
-        # }
-        # self.initializing_message = {'role': 'user', 'content': 
-        #     "Hi! I'm playing a text heavy game in Japanese, its original language. " \
-        #     "Would you be able to help with translating some dialogues and instructions " \
-        #     "into English for me? "\
-        #     "The text will be extracted via OCR, so ask me to verify "\
-        #     "if you find potential errors. "\
-        #     "Otherwise, for now, please limit your response contents to "\
-        #     "the following 3 sections: "\
-        #     "a few English translation options, a romanji representation, "\
-        #     "and a glossary for 2 or fewer vocabs of your choosing "\
-        #     "(focus on explaining the word forms) in bullet point form. "\
-        #     "Do not include any other additional note unless I ask. "\
-        #     "Thank you!"
-        # }
-        # self.initializing_message = {'role': 'user', 'content': 
-        #     "Hi! I'm playing a text heavy game in Japanese, its original language. "\
-        #     "Would you be able to help with translating some dialogues and instructions "\
-        #     "into English for me? "\
-        #     "The text will be extracted via OCR, so ask me to verify "\
-        #     "if you find potential errors. "\
-        #     "Otherwise, for now, please limit your response contents to "\
-        #     "the following 3 sections: "\
-        #     "a few English translation options, "\
-        #     "a copy of the original text with words separated "\
-        #     "with their corresponding romanji representation in parentheses, "\
-        #     "and a glossary for 2 or fewer vocabs of your choosing "\
-        #     "(focus on explaining the word forms) in bullet point form. "\
-        #     "Do not include any other additional note unless I ask. "\
-        #     "Thank you!"
-        # }
-        # self.initializing_response = {'role': 'assistant', 'content': 
-        #     "That sounds like a fascinating challenge! "\
-        #     "I would be happy to help you translate and understand the Japanese text from your game. "\
-        #     "Dealing with OCR can be tricky, "\
-        #     "so I will definitely ask you to verify anything that looks questionable.\n"\
-        #     "\n"\
-        #     "I understand your preferred format perfectly:\n"\
-        #     "1. A few English translation options.\n"\
-        #     "2. Romanji representation.\n"\
-        #     "3. A concise glossary (max 2 words), "\
-        #     "focusing on real-life usefulness, "\
-        #     "including grammatical notes if the form is different from the dictionary entry.\n"\
-        #     "\n"\
-        #     "Please go ahead and paste or provide the first piece of Japanese text you need help with! "\
-        #     "I'm ready when you are."
-        # }
-        # self.use_canned_init_response = False
+        if (self.use_canned_init_response) :
+            self.messages = [self.initializing_message,self.initializing_response]
+        else :
+            self.messages = [self.initializing_message]
+        # print(messages)
+
+    def _setup_db(self):
+        # self.cache_path = 'cache.json'
+        self.cache_path = self.config["paths"]["cache"]
+        self.db = TinyDB(self.cache_path) # TODO: replace with sqlite
+        # the first displayed result is not in fact recorded, so we use next_id here
+        # NOTE: with TinyDB, assume that the indices are consecutive (unbroken chain), and starts with 1
+        self.curr_convo_idx = len(self.db)+1
+
+    def _update_config(self):
+        """writes config from ui into state"""
+        self.config["backend"]["model_name"] = self.entry_model.get()
+        self.config["paths"]["cache"] = self.entry_cache.get()
+        self.config["backend"]["init_msg"] = self.box_init_msg.get("1.0","end")
+        self.config["backend"]["init_res"] = self.box_init_res.get("1.0","end")
+
+    def _update_config_and_reset(self):
+        self.config["backend"]["model_name"] = self.entry_model.get()
+        self.config["paths"]["cache"] = self.entry_cache.get()
+        self.config["backend"]["init_msg"] = self.box_init_msg.get("1.0","end")
+        self.config["backend"]["init_res"] = self.box_init_res.get("1.0","end")
+        self.is_running = False
+        self.thread.join()
+        self._setup_model()
+        self._setup_db()
+        self.is_running = True
+        self.run()
+        # TODO: acknowledgement
+
+    def _save_config(self):
+        self._update_config()
+        with open(SRC_DIR/"config.toml","w") as f:
+            tomlkit.dump(self.config,f)
+        # TODO: acknowledgement
+
+    def _revert_config(self):
+        self._load_config()
+        self._render_settings()
+
+    def _load_config(self):
+        with open(SRC_DIR/"config.toml","r") as f:
+            self.config = tomlkit.load(f)
+
+    def _render_settings(self):
+        self.entry_model.delete("0","end")
+        self.entry_model.insert('end',self.config["backend"]["model_name"])
+        self.entry_cache.delete("0","end")
+        self.entry_cache.insert('end',self.config["paths"]["cache"])
+        self.box_init_msg.delete("1.0","end")
+        self.box_init_msg.insert('end',self.config["backend"]["init_msg"])
+        self.box_init_res.delete("1.0","end")
+        self.box_init_res.insert('end',self.config["backend"]["init_res"])
+        
 
     def _setup_window(self):
         # default size
@@ -165,6 +159,7 @@ class App(ctk.CTk):
 
     def _title_bar_customization(self):
         # title bar customizaton
+        # only works for win 11
         # https://github.com/TomSchimansky/CustomTkinter/discussions/1011
         try:
             from ctypes import windll, byref, sizeof, c_int
@@ -185,10 +180,27 @@ class App(ctk.CTk):
             # print(f"trying to set title bar color but failed, That's okay.")
             pass
 
+    def _font_customization(self):
+        # custom font setup
+        # only works on windows
+        # https://github.com/orgs/pyinstaller/discussions/6266
+        try:
+            import ctypes.wintypes
+            wingdi = ctypes.CDLL("gdi32")
+            wingdi.AddFontResourceExW.argtypes = [ctypes.c_wchar_p, ctypes.wintypes.DWORD, ctypes.c_void_p]
+            res = wingdi.AddFontResourceExW(str(SRC_DIR/"MonofurNerdFontMono-Regular.ttf"), 0x10, 0)
+            if (res !=0 ) :
+                # print(f"trying to set custom font but failed, with error code: {res}. This is okay.")
+                pass
+        except Exception as e:
+            # print(f"trying to set custom font but failed, That's okay.")
+            pass
+
     def _setup_layout(self):
         # layout init
+        # TODO: make frames into classes
 
-        # TODO
+        # TODO: +, -
         self.bind("<Control-]>",self.scale_up)
         self.bind("<Control-[>",self.scale_down)
 
@@ -198,7 +210,7 @@ class App(ctk.CTk):
         frame_response.grid_rowconfigure(0, weight=1)
         frame_response.pack(fill="both", expand=True, padx=0, pady=0)
         renderer = CTkMarkdown(frame_response, 
-            font=("Monofur Nerd Font Mono", 16), fonts="Monofur Nerd Font Mono", 
+            font=(self.config["ui"]["font"], 16), fonts=self.config["ui"]["font"], 
             type_scale = {        
                 'h1': 2,
                 'h2': 1.5,
@@ -227,38 +239,38 @@ class App(ctk.CTk):
         status_line.grid(row=0, column=0, padx=10, pady=(3,3), sticky="nsew")
 
         ## status displays
-        armed_icon_label = ctk.CTkLabel(status_line, text="󰤁", height=8, font=("Monofur Nerd Font Mono", 14, "bold"), text_color="#878787")
+        armed_icon_label = ctk.CTkLabel(status_line, text="󰤁", height=8, font=(self.config["ui"]["font"], 14, "bold"), text_color="#878787")
         armed_icon_label.place(relx=0.0, x=15, rely=0.5, anchor="e")
-        armed_hint_label = ctk.CTkLabel(status_line, text="", height=8, font=("Monofur Nerd Font Mono", 30), text_color="#FA8C55")
+        armed_hint_label = ctk.CTkLabel(status_line, text="", height=8, font=(self.config["ui"]["font"], 30), text_color="#FA8C55")
         armed_hint_label.place(relx=0.0, x=35, rely=0.5, anchor="e")
 
-        readiness_icon_label = ctk.CTkLabel(status_line, text="", height=8, font=("Monofur Nerd Font Mono", 14, "bold"), text_color="#878787")
+        readiness_icon_label = ctk.CTkLabel(status_line, text="", height=8, font=(self.config["ui"]["font"], 14, "bold"), text_color="#878787")
         readiness_icon_label.place(relx=0.0, x=55, rely=0.5, anchor="e")
-        readiness_hint_label = ctk.CTkLabel(status_line, text="", height=8, font=("Monofur Nerd Font Mono", 30), text_color="#FA8C55")
+        readiness_hint_label = ctk.CTkLabel(status_line, text="", height=8, font=(self.config["ui"]["font"], 30), text_color="#FA8C55")
         readiness_hint_label.place(relx=0.0, x=75, rely=0.5, anchor="e")
 
-        busyness_icon_label = ctk.CTkLabel(status_line, text="", height=8, font=("Monofur Nerd Font Mono", 14, "bold"), text_color="#878787")
+        busyness_icon_label = ctk.CTkLabel(status_line, text="", height=8, font=(self.config["ui"]["font"], 14, "bold"), text_color="#878787")
         busyness_icon_label.place(relx=0.0, x=95, rely=0.5, anchor="e")
-        busyness_hint_label = ctk.CTkLabel(status_line, text="", height=8, font=("Monofur Nerd Font Mono", 30), text_color="#55FAE7")
+        busyness_hint_label = ctk.CTkLabel(status_line, text="", height=8, font=(self.config["ui"]["font"], 30), text_color="#55FAE7")
         busyness_hint_label.place(relx=0.0, x=115, rely=0.5, anchor="e")
 
         ## status toggle
         button_toggle_arm = ctk.CTkButton(status_line, text="󰤁", command=self.toggle_arm,
-                                        width=30, height=10, font=("Monofur Nerd Font Mono", 12), 
+                                        width=30, height=10, font=(self.config["ui"]["font"], 12), 
                                         fg_color="#444444", hover_color="#FA7163")
         button_toggle_arm.place(relx=0.0, x=160, rely=0.5, anchor="e")
         button_toggle_settings = ctk.CTkButton(status_line, text="", command=self.toggle_settings,
-                                        width=30, height=10, font=("Monofur Nerd Font Mono", 12), 
+                                        width=30, height=10, font=(self.config["ui"]["font"], 12), 
                                         fg_color="#444444", hover_color="#FA7163")
         button_toggle_settings.place(relx=0.0, x=200, rely=0.5, anchor="e")
 
         ## message history navigation
         button_prev_msg = ctk.CTkButton(status_line, text="", command=self.get_prev_message, 
-                                        width=30, height=10, font=("Monofur Nerd Font Mono", 12), 
+                                        width=30, height=10, font=(self.config["ui"]["font"], 12), 
                                         fg_color="#444444", hover_color="#FA7163")
         button_prev_msg.place(relx=0.0, x=260, rely=0.5, anchor="e")
         button_next_msg = ctk.CTkButton(status_line, text="", command=self.get_next_message, 
-                                        width=30, height=10, font=("Monofur Nerd Font Mono", 12), 
+                                        width=30, height=10, font=(self.config["ui"]["font"], 12), 
                                         fg_color="#444444", hover_color="#FA7163")
         button_next_msg.place(relx=0.0, x=300, rely=0.5, anchor="e")
         slider_msg = ctk.CTkSlider(status_line, from_=1, to=len(self.db), command=lambda x: self.get_idx_message(int(x)), 
@@ -268,10 +280,10 @@ class App(ctk.CTk):
         slider_msg.place(relx=0.0, x=505, rely=0.5, anchor="e")
 
         ## message input hint
-        message_hint_label = ctk.CTkLabel(status_line, text="󰘶 󰌑", height=8, font=("Monofur Nerd Font Mono", 20), text_color="#878787")
+        message_hint_label = ctk.CTkLabel(status_line, text="󰘶 󰌑", height=8, font=(self.config["ui"]["font"], 20), text_color="#878787")
         message_hint_label.place(relx=1.0, x=-10, rely=0.5, anchor="e")
 
-
+        # TODO: make into class
         frame_settings = ctk.CTkFrame(self, fg_color="transparent")
         frame_settings.grid_columnconfigure(0, weight=1)
         frame_settings.grid_rowconfigure(0, weight=1)
@@ -281,34 +293,33 @@ class App(ctk.CTk):
         frame_settings_inner.grid_rowconfigure(0, weight=1)
         frame_settings_inner.grid(row=0, column=0, padx=10, pady=(5,0), sticky="nsew",)
         
-        setting_main_label = ctk.CTkLabel(frame_settings_inner, text="SETTINGS", font=("Monofur Nerd Font Mono", 14), text_color="#BDBDBD")
+        setting_main_label = ctk.CTkLabel(frame_settings_inner, text="SETTINGS", font=(self.config["ui"]["font"], 14), text_color="#BDBDBD")
         setting_main_label.grid(row=0, column=0, padx=10, pady=(0,0), sticky="ew")
 
         frame_settings_entries = ctk.CTkFrame(frame_settings_inner, fg_color="transparent")
         frame_settings_entries.grid_columnconfigure(1, weight=1)
         frame_settings_entries.grid_rowconfigure(0, weight=1)
         frame_settings_entries.grid(row=1, column=0, padx=10, pady=(0, 0), sticky="nsew")
-        setting_model_label = ctk.CTkLabel(frame_settings_entries, text="Model", height=8, font=("Monofur Nerd Font Mono", 13), text_color="#BDBDBD")
+        setting_model_label = ctk.CTkLabel(frame_settings_entries, text="Model", height=8, font=(self.config["ui"]["font"], 13), text_color="#BDBDBD")
         setting_model_label.grid(row=0, column=0, padx=10, pady=(0,0), sticky="w")
-        entry_model = ctk.CTkEntry(frame_settings_entries, font=("Monofur Nerd Font Mono", 14), 
-                                   border_width=0, height=23, fg_color='#232323',
-                                   placeholder_text=self.model_name)
+        entry_model = ctk.CTkEntry(frame_settings_entries, font=(self.config["ui"]["font"], 14), 
+                                   border_width=0, height=23, fg_color='#232323')
+        
         entry_model.grid(row=0, column=1, padx=10, pady=(0,0), sticky="ew")
-        setting_cache_label = ctk.CTkLabel(frame_settings_entries, text="Cache", font=("Monofur Nerd Font Mono", 13), text_color="#BDBDBD")
+        setting_cache_label = ctk.CTkLabel(frame_settings_entries, text="Cache", font=(self.config["ui"]["font"], 13), text_color="#BDBDBD")
         setting_cache_label.grid(row=1, column=0, padx=10, pady=(0,0), sticky="w")
-        entry_cache = ctk.CTkEntry(frame_settings_entries, font=("Monofur Nerd Font Mono", 14), 
-                                   border_width=0, height=23, fg_color='#232323',
-                                   placeholder_text=self.cache_path)
+        entry_cache = ctk.CTkEntry(frame_settings_entries, font=(self.config["ui"]["font"], 14), 
+                                   border_width=0, height=23, fg_color='#232323')
         entry_cache.grid(row=1, column=1, padx=10, pady=(0,0), sticky="ew")
 
         frame_settings_boxes = ctk.CTkFrame(frame_settings_inner, fg_color="transparent")
         frame_settings_boxes.grid_columnconfigure((0,1), weight=1)
         frame_settings_boxes.grid_rowconfigure(0, weight=1)
         frame_settings_boxes.grid(row=2, column=0, padx=10, pady=(0,10), sticky="nsew")
-        setting_input_label = ctk.CTkLabel(frame_settings_boxes, text="Init Input", font=("Monofur Nerd Font Mono", 13), text_color="#BDBDBD")
+        setting_input_label = ctk.CTkLabel(frame_settings_boxes, text="Init Input", font=(self.config["ui"]["font"], 13), text_color="#BDBDBD")
         setting_input_label.grid(row=0, column=0, padx=(0,3), pady=(0,0), sticky="ew")
         box_init_msg = ctk.CTkTextbox(frame_settings_boxes,
-                                      font=("Monofur Nerd Font Mono", 14), 
+                                      font=(self.config["ui"]["font"], 14), 
                                       #  border_color="#F5F5F5", border_width=2,
                                       wrap='char',
                                       fg_color="#232323",
@@ -316,33 +327,33 @@ class App(ctk.CTk):
                                       )
         box_init_msg.insert('end',self.initializing_message['content'])
         box_init_msg.grid(row=1, column=0, padx=(0,3), pady=(0,0), sticky="ew")
-        setting_output_label = ctk.CTkLabel(frame_settings_boxes, text="Init Response", font=("Monofur Nerd Font Mono", 13), text_color="#BDBDBD")
+        setting_output_label = ctk.CTkLabel(frame_settings_boxes, text="Init Response", font=(self.config["ui"]["font"], 13), text_color="#BDBDBD")
         setting_output_label.grid(row=0, column=1, padx=(3,0), pady=(0,0), sticky="we")
         box_init_res = ctk.CTkTextbox(frame_settings_boxes,
-                                      font=("Monofur Nerd Font Mono", 14), 
+                                      font=(self.config["ui"]["font"], 14), 
                                       #  border_color="#F5F5F5", border_width=2,
                                       wrap='char',
                                       fg_color="#232323",
                                       height=100
                                       )
-        box_init_res.insert('end',self.initializing_response['content'])
         box_init_res.grid(row=1, column=1, padx=(3,0), pady=(0,0), sticky="ew")
+
 
         # TODO: setting related actions & init file
         frame_settings_buttons = ctk.CTkFrame(frame_settings_inner, fg_color="transparent")
         frame_settings_buttons.grid_columnconfigure((0,1,2), weight=1)
         frame_settings_buttons.grid_rowconfigure(0, weight=1)
         frame_settings_buttons.grid(row=3, column=0, padx=10, pady=(0,10), sticky="nsew")
-        button_revert_settings = ctk.CTkButton(frame_settings_buttons, text="Revert Settings", command=None,
-                                        height=12, font=("Monofur Nerd Font Mono", 12), 
+        button_revert_settings = ctk.CTkButton(frame_settings_buttons, text="Revert Settings", command=self._revert_config,
+                                        height=12, font=(self.config["ui"]["font"], 12), 
                                         fg_color="#444444", hover_color="#FA7163")
         button_revert_settings.grid(row=0, column=0, padx=(0,3), pady=(0,0), sticky="ew")
-        button_save_settings = ctk.CTkButton(frame_settings_buttons, text="Save New Settings", command=None,
-                                        height=12, font=("Monofur Nerd Font Mono", 12), 
+        button_save_settings = ctk.CTkButton(frame_settings_buttons, text="Save New Settings", command=self._save_config,
+                                        height=12, font=(self.config["ui"]["font"], 12), 
                                         fg_color="#444444", hover_color="#FA7163")
         button_save_settings.grid(row=0, column=1, padx=(3,3), pady=(0,0), sticky="ew")
-        button_reload = ctk.CTkButton(frame_settings_buttons, text="Reload With Settings", command=None,
-                                        height=12, font=("Monofur Nerd Font Mono", 12), 
+        button_reload = ctk.CTkButton(frame_settings_buttons, text="Reload With Settings", command=self._update_config_and_reset,
+                                        height=12, font=(self.config["ui"]["font"], 12), 
                                         fg_color="#444444", hover_color="#FA7163")
         button_reload.grid(row=0, column=2, padx=(3,0), pady=(0,0), sticky="ew")
 
@@ -352,7 +363,7 @@ class App(ctk.CTk):
         frame_message.grid_columnconfigure(0, weight=1)
         frame_message.grid_rowconfigure(0, weight=1)
         frame_message.pack(fill="both", expand=False, padx=0, pady=0)
-        message = ctk.CTkTextbox(frame_message, font=("Monofur Nerd Font Mono", 16), 
+        message = ctk.CTkTextbox(frame_message, font=(self.config["ui"]["font"], 16), 
                                 #  border_color="#F5F5F5", border_width=2,
                                 wrap='char',
                                 fg_color="#353535",
@@ -375,6 +386,12 @@ class App(ctk.CTk):
         self.frame_message = frame_message
         self.frame_status = frame_status
         self.frame_settings = frame_settings
+        # TODO: put into frame_settings when it's a class
+        self.entry_model = entry_model
+        self.entry_cache = entry_cache
+        self.box_init_msg = box_init_msg
+        self.box_init_res = box_init_res
+        self._render_settings()
         frame_settings.pack_forget()
         
         self.adjust_input_height(1)
@@ -505,12 +522,7 @@ class App(ctk.CTk):
     def run_in_thread(self):
 
         # session initialization
-        if (self.use_canned_init_response) :
-            self.messages = [self.initializing_message,self.initializing_response]
-        else :
-            self.messages = [self.initializing_message]
-        # print(messages)
-
+        self.busyness_hint_label.configure(text_color="#FA8C55")
         response = chat(
             model=self.model_name,
             messages=self.messages,
@@ -528,6 +540,7 @@ class App(ctk.CTk):
             if (response.message.content):
                 self.messages += [{'role': 'assistant', 'content': response.message.content}]
                 self.renderer.set_markdown(response.message.content)
+        self.busyness_hint_label.configure(text_color="#55FAE7")
   
         # perpetural
         while self.is_running:
@@ -537,13 +550,16 @@ class App(ctk.CTk):
                 self.armed_hint_label.configure(text_color="#FA8C55")
                 continue
 
-            new_text = pyperclip.paste()
-            if (self.clipboard_text != new_text) :
-                self.clipboard_text = new_text
-                self.message.delete("1.0","end")
-                self.message.insert("end",self.clipboard_text,"input")
-                self.adjust_input_height()
-                self.send_request(self.clipboard_text)
+            if self._has_custom_msg:
+                self.send_request(self.message.get("1.0", "end-1c"))
+            else:
+                new_text = pyperclip.paste()
+                if (self.clipboard_text != new_text) :
+                    self.clipboard_text = new_text
+                    self.message.delete("1.0","end")
+                    self.message.insert("end",self.clipboard_text,"input")
+                    self.adjust_input_height()
+                    self.send_request(self.clipboard_text)
 
             time.sleep(0.01)
 
@@ -552,12 +568,13 @@ class App(ctk.CTk):
         # print("messaging")
         # print(message.get("1.0", "end-1c"))
         # print(event)
-        self.send_request(self.message.get("1.0", "end-1c"))
+        self._has_custom_msg = True
+        # self.send_request(self.message.get("1.0", "end-1c")) # let thread handle it so ui does not block
         return "break" # this prevents further bound functions from being invoked. (tkinter inline doc)
 
     def run(self):
-        thread = threading.Thread(target=self.run_in_thread, daemon=True)
-        thread.start()
+        self.thread = threading.Thread(target=self.run_in_thread, daemon=True)
+        self.thread.start()
 
 
 app = App()

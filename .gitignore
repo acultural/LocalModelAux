@@ -11,6 +11,7 @@ dist
 
 # misc
 misc
+external
 
 # python
 __pycache__
