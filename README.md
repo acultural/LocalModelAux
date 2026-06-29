@@ -5,6 +5,9 @@ Auxillary gadgets for local model interactions
 ## Venv
 `.\localModelAux\Scripts\Activate.ps1`
 
+## Build
+`pyinstaller --onedir -w --add-data "assets:assets" --add-data "external:external" --add-data "config.toml:." --icon=assets\icon.ico translator.py`
+
 ## Below are some reference materials
 ### Simple SVG visual editor
     https://www.svgviewer.dev/

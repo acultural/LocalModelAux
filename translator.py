@@ -150,7 +150,7 @@ class App(ctk.CTk):
         self.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
         # window attributs
         self.resizable(True, True)
-        self.attributes('-alpha', 0.9)
+        self.attributes('-alpha', self.config["ui"]["alpha"])
         self.attributes('-topmost', 1)
         # title bar
         self.title('Clip Translator')
