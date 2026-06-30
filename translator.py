@@ -44,7 +44,7 @@ class App(ctk.CTk):
         self._setup_window()
         self._font_customization()
         # TODO: window scaling is a bit weird; ctk makes a bunch of internal adjustments
-        self.ui_scale = self.config["ui"]["scale"]
+        self.ui_scale = float(self.config["ui"]["scale"]) # this conversion is a must
         ctk.set_widget_scaling(1)
         ctk.set_window_scaling(1)
 
@@ -68,17 +68,14 @@ class App(ctk.CTk):
         # connect to backend and start the backend functional loop
         self.thread = threading.Thread(target=self.run_in_thread, daemon=True)
         self.run()
-        # TODO: add the ability to reset the session
-        # TODO: add the ability to save setting changes the model setup
-        # TODO: remember to add the config file when building, and save the build script
 
     def _setup_model(self):
         self.model_name = self.config["backend"]["model_name"]
         self.initializing_message = {'role': 'user', 'content': self.config["backend"]["init_msg"]}
         self.initializing_response = {'role': 'assistant', 'content': self.config["backend"]["init_res"]}
-        self.use_canned_init_response = False
+        self.use_canned_init_response = ctk.BooleanVar(value=bool(self.config["backend"]["use_init_res"]))
 
-        if (self.use_canned_init_response) :
+        if (self.use_canned_init_response.get()) :
             self.messages = [self.initializing_message,self.initializing_response]
         else :
             self.messages = [self.initializing_message]
@@ -87,7 +84,7 @@ class App(ctk.CTk):
     def _setup_db(self):
         # self.cache_path = 'cache.json'
         self.cache_path = self.config["paths"]["cache"]
-        self.db = TinyDB(self.cache_path) # TODO: replace with sqlite
+        self.db = TinyDB(self.cache_path) # TODO: replace with sqlite maybe
         # the first displayed result is not in fact recorded, so we use next_id here
         # NOTE: with TinyDB, assume that the indices are consecutive (unbroken chain), and starts with 1
         self.curr_convo_idx = len(self.db)+1
@@ -98,14 +95,13 @@ class App(ctk.CTk):
         self.config["paths"]["cache"] = self.entry_cache.get()
         self.config["backend"]["init_msg"] = self.box_init_msg.get("1.0","end")
         self.config["backend"]["init_res"] = self.box_init_res.get("1.0","end")
+        self.config["backend"]["use_init_res"] = self.use_canned_init_response.get()
 
     def _update_config_and_reset(self):
-        self.config["backend"]["model_name"] = self.entry_model.get()
-        self.config["paths"]["cache"] = self.entry_cache.get()
-        self.config["backend"]["init_msg"] = self.box_init_msg.get("1.0","end")
-        self.config["backend"]["init_res"] = self.box_init_res.get("1.0","end")
+        self._update_config()
         self.is_running = False
-        self.thread.join()
+        self.busyness_hint_label.configure(text_color="#FA8C55")
+        self.thread.join(1)
         self._setup_model()
         self._setup_db()
         self.is_running = True
@@ -200,9 +196,9 @@ class App(ctk.CTk):
         # layout init
         # TODO: make frames into classes
 
-        # TODO: +, -
-        self.bind("<Control-]>",self.scale_up)
-        self.bind("<Control-[>",self.scale_down)
+        # self.bind("<Key>",lambda x: print(x)) # for dev / debug
+        self.bind("<Control-equal>",self.scale_up)
+        self.bind("<Control-minus>",self.scale_down)
 
         # response display
         frame_response = ctk.CTkFrame(self, fg_color="transparent", height=10)
@@ -327,8 +323,25 @@ class App(ctk.CTk):
                                       )
         box_init_msg.insert('end',self.initializing_message['content'])
         box_init_msg.grid(row=1, column=0, padx=(0,3), pady=(0,0), sticky="ew")
-        setting_output_label = ctk.CTkLabel(frame_settings_boxes, text="Init Response", font=(self.config["ui"]["font"], 13), text_color="#BDBDBD")
-        setting_output_label.grid(row=0, column=1, padx=(3,0), pady=(0,0), sticky="we")
+        checkbox_init_res = ctk.CTkCheckBox(
+            master=frame_settings_boxes,
+            text="Init Response",
+            font=(self.config["ui"]["font"], 13), 
+            text_color="#BDBDBD",
+            variable=self.use_canned_init_response,
+            onvalue=True,
+            offvalue=False,
+            command=None,
+            checkbox_height=18,
+            checkbox_width=18,
+            corner_radius=6,
+            border_width=1,
+            hover_color="#878787",
+            fg_color="#FA7163",
+            width=10,
+            height=10,
+        )
+        checkbox_init_res.grid(row=0, column=1, padx=(0,10), pady=(0,0))
         box_init_res = ctk.CTkTextbox(frame_settings_boxes,
                                       font=(self.config["ui"]["font"], 14), 
                                       #  border_color="#F5F5F5", border_width=2,
@@ -339,7 +352,7 @@ class App(ctk.CTk):
         box_init_res.grid(row=1, column=1, padx=(3,0), pady=(0,0), sticky="ew")
 
 
-        # TODO: setting related actions & init file
+        # setting related actions & init file
         frame_settings_buttons = ctk.CTkFrame(frame_settings_inner, fg_color="transparent")
         frame_settings_buttons.grid_columnconfigure((0,1,2), weight=1)
         frame_settings_buttons.grid_rowconfigure(0, weight=1)
@@ -436,6 +449,7 @@ class App(ctk.CTk):
             self.message.insert("end",history_message['usr']['content'],"history")
 
     def get_idx_message(self,idx:int):
+        # print(idx)
         self.curr_convo_idx = idx
         self.get_message_history_at_curr_idx()
 
@@ -515,7 +529,7 @@ class App(ctk.CTk):
             self.db.insert({"usr":new_input,"res":new_response})
             self.curr_convo_idx = len(self.db)
             self.slider_msg.set(len(self.db))
-            self.slider_msg.configure(number_of_steps=len(self.db)-1)
+            self.slider_msg.configure(to=len(self.db),number_of_steps=len(self.db)-1)
         else:
             self.renderer.set_markdown("... got no response ... ")
 
@@ -533,7 +547,7 @@ class App(ctk.CTk):
         self.message.delete("1.0","end")
         self.message.insert("end","SYSTEM READY!","status")
         self.readiness_hint_label.configure(text_color="#55FAE7")
-        if (self.use_canned_init_response) :
+        if (self.use_canned_init_response.get()) :
             self.renderer.set_markdown("""*I'm ready when you are*...""")
             # renderer.set_markdown(response.message.content)
         else :
@@ -552,6 +566,7 @@ class App(ctk.CTk):
 
             if self._has_custom_msg:
                 self.send_request(self.message.get("1.0", "end-1c"))
+                self._has_custom_msg = False # consume it
             else:
                 new_text = pyperclip.paste()
                 if (self.clipboard_text != new_text) :

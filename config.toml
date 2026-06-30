@@ -9,27 +9,8 @@ cache = "cache.json"
 [backend]
 model_name = "gemma4"
 
-init_msg = """Hi! I'm playing a text heavy game in Japanese, its original language. \
-Would you be able to help with translating some dialogues and instructions \
-into English for me? \
-The text will be extracted via OCR, so ask me to verify \
-if you find potential errors. \
-Otherwise, for now, please limit your response contents to \
-the following 3 sections: \
-a few English translation options, \
-a copy of the original text with words separated \
-with their corresponding romanji representation in parentheses, \
-and a glossary for 2 or fewer vocabs of your choosing \
-(focus on explaining the word forms) in bullet point form. \
-Do not include any other additional note unless I ask. \
-Thank you!"""
+init_msg = "Hi! I'm playing a text heavy game in Japanese, its original language. Would you be able to help with translating some dialogues and instructions into English for me? The text will be extracted via OCR, so ask me to verify if you find potential errors. Otherwise, for now, please limit your response contents to the following 3 sections: a few English translation options, a lexical breakdown of the original text including romanji representations, and a glossary of 2 or fewer grammatical/cultural note of your choosing (focus on explaining the word forms) in bullet point form. Do not include any other additional note unless I ask. Do not include any non-basic markdown formatting either. Thank you!\n\n"
 
-init_res = """Understood. I will limit my response to exactly these three sections:\n\
-\n\
-1. English Translation Options\n\
-2. Original Text with Romanization\n\
-3. Glossary\n\
-\n\
-I will also always prompt you to verify the text if it appears corrupted due to OCR, and otherwise proceed directly with the structure above without any extra notes.\n\
-\n\
-Please provide the Japanese text when you are ready."""
+use_init_res = false
+
+init_res = "Understood. I will limit my response to exactly these three sections:\n\n1. A few English translation option\n2. A lexical breakdown of the original text including romanji representations\n3. A glossary of 2 or fewer grammatical/cultural notes (focusing on word forms)\n\nI will also always prompt you to verify the text if it appears corrupted due to OCR, and otherwise proceed directly with the structure above without any extra notes.\n\nPlease provide the Japanese text when you are ready.\n\n"

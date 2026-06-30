@@ -2,7 +2,7 @@
 localModelAux
 
 # generated files
-cache.json
+cache*.json
 
 # build
 build
