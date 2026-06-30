@@ -59,7 +59,10 @@ class ClassLogger:
         self.cls = cls
         self.logger = logger
         self.level = level
-        self.verbose = False # TODO: expose via args
+        self.verbose = True # TODO: expose via args
+        # NOTE: some crashes don't even raise an exception,
+        # so "verbose" has a significant role to play...
+        # maybe it should be True by default 
 
     def __call__(self, *args, **kwargs):
         self.logger.info(f'Initializing class {self.cls.__name__}')
