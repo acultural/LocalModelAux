@@ -23,6 +23,9 @@ Beyond basic translation, you can also use the app to learn. Ask the model to fe
     - By default, the model used is `gemma4`. You can change that in settings or the internal `config.toml` file 
 - Download the distribution and run "Clip Translator"
 - Customize your prompt in the settings menu or `config.toml`
+    - If you need to change the source and/or targe language, make sure you change the prompt!
+    - For fast response, strictly limit output in your prompt with phrases like "only include ...", "...\<a number\> or fewer ...\<something\>" and "do not include additional notes unless I ask."
+    - For more nuanced (but predictable) response, reduce restrictive phrasings but add more suggestions like "include a lexical breakdown", "include a phonetic guide", "give me some pointers regarding the grammar rules involved", "incorporate past queries and provide a dynamic evaluation of the characterization of the speakers", "in bullet point format", "in table format", etc.
 - Clip or copy things you want to translate (For OCR, using Snipping Tool's `Win` + `Shift` + `T` is recommended; I bound it to a macro key.)
 - Read the following section for more details
 
@@ -60,14 +63,18 @@ Reload with settings to apply them
 - `Ctrl` + `=` to expand the UI
 
 ### Customization
+The internal `config.toml` file contains all exposed and some unexposed settings for you to mess with.
+#### Font
 By default, **Monofur Nerd Font Mono** is shipped with the distribution. On MacOS and Linux, it cannot be loaded directly, so default font will be used and some glyphs will be missing.\
 You can also install any **Nerd Font** alternatives and change the settings in `config.toml`.
-
-`config.toml` also contains all exposed and some unexposed settings for you to mess with.
+#### Opacity
+Change the `alpha` value
+#### Default Scale
+Change the `scale` value
 
 ### Build
 `pyinstaller --onedir -w --add-data "assets:assets" --add-data "external:external" --add-data "config.toml:." --icon=assets\icon.ico --name "Clip Translator" translator.py`
-
+- `external` contains a forked copy of CTkMarkdown; it may or may not be necessary in the future (and is therefore not included as a submodule). For now, copy the `.py` file from my other repo and place it there before building. 
 
 ## Maintainer's Dev Notes:
 ### Venv
