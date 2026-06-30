@@ -1,23 +1,45 @@
+# resources linking
+import pathlib
+SRC_DIR = pathlib.Path(__file__).parent.resolve()
+
+# logging
+import logging
+from logging.handlers import RotatingFileHandler
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+(SRC_DIR/'logs').mkdir(parents=False,exist_ok=True)
+logging_formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+logging_handler = RotatingFileHandler(
+    filename=SRC_DIR/'logs'/'log.log',
+    maxBytes=5000, 
+    backupCount=3, 
+    encoding="utf-8"
+)
+logging_handler.setFormatter(logging_formatter)
+logger.addHandler(logging_handler)
+# log system info
 import sys
-from typing import Tuple
-# print(sys.version)
-# import platform
-# print([platform.system(),platform.release()])
+logger.info(f'version:{sys.version}')
+import platform
+logger.info(f'{platform.system()}:{platform.release()}')
+# TODO: log app version too
+# additional logging setup
+import functools
+
 
 # ollama backend access
 from ollama import chat
 
 # database
 from tinydb import TinyDB, Query # TODO: switch to sqlite maybe
-import sqlite3
+# import sqlite3
 # import json
 
 # clipboard access (tkinter has one too)
 import pyperclip
 
 # gui
-import tkinter as tk
-from tkinter.scrolledtext import ScrolledText
 # from ctk_markdown import CTkMarkdown
 from external.ctk_markdown import CTkMarkdown
 import customtkinter as ctk
@@ -26,14 +48,53 @@ import customtkinter as ctk
 import threading
 import time
 
-# resources linking
-import pathlib
-SRC_DIR = pathlib.Path(__file__).parent.resolve()
-
 # config management
 import tomlkit
 
+logger.debug(f'import complete')
 
+class ClassLogger:
+    """Logs class methods"""
+    def __init__(self, cls, logger=logger, level=logging.DEBUG):
+        self.cls = cls
+        self.logger = logger
+        self.level = level
+        self.verbose = False # TODO: expose via args
+
+    def __call__(self, *args, **kwargs):
+        self.logger.info(f'Initializing class {self.cls.__name__}')
+
+        # adds logging to class methods
+        for name, method in self.cls.__dict__.items():
+            if callable(method) and not name.startswith('__'):
+                # print(name, method)
+                setattr(self.cls, name, self.log_method(method))
+        return self.cls(*args, **kwargs)
+
+    def log_method(self, func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            # Log entry
+            if self.verbose:
+                self.logger.log(self.level, f"{func.__name__} called | Args: {args}, Kwargs: {kwargs}")
+
+            # Log execution
+            try:
+                result = func(*args, **kwargs)
+            except Exception as e:
+                self.logger.exception(f"Exception raised in {func.__name__}. exception: {str(e)} \
+                                      \nArgs: {args}, Kwargs: {kwargs}")
+                raise e
+            
+            # Log exit
+            if self.verbose:
+                self.logger.log(self.level, f"{func.__name__} returned {result}")
+            return result
+        return wrapper
+
+logger.debug(f'post classlogger code')
+
+@ClassLogger
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -505,7 +566,6 @@ class App(ctk.CTk):
     # self.protocol("WM_DELETE_WINDOW", on_closing)
 
     def send_request(self,msg):
-        global messages
         new_input = {'role': 'user', 'content': msg}
         self.busyness_hint_label.configure(text_color="#FA8C55")
 
@@ -528,7 +588,10 @@ class App(ctk.CTk):
 
             self.db.insert({"usr":new_input,"res":new_response})
             self.curr_convo_idx = len(self.db)
-            self.slider_msg.set(len(self.db))
+            try: # this block appears elsewhere too, slider deals with low range very badly
+                self.slider_msg.set(len(self.db))
+            except:
+                pass
             self.slider_msg.configure(to=len(self.db),number_of_steps=len(self.db)-1)
         else:
             self.renderer.set_markdown("... got no response ... ")
@@ -591,8 +654,12 @@ class App(ctk.CTk):
         self.thread = threading.Thread(target=self.run_in_thread, daemon=True)
         self.thread.start()
 
+logger.debug(f'post app code')
 
+logger.info(f'ready to init')
 app = App()
+logger.info(f'app initialized')
+
 app.mainloop()
 
 

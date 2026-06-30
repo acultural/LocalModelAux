@@ -27,6 +27,9 @@ Beyond basic translation, you can also use the app to learn. Ask the model to fe
     - For fast response, strictly limit output in your prompt with phrases like "only include ...", "...\<a number\> or fewer ...\<something\>" and "do not include additional notes unless I ask."
     - For more nuanced (but predictable) response, reduce restrictive phrasings but add more suggestions like "include a lexical breakdown", "include a phonetic guide", "give me some pointers regarding the grammar rules involved", "incorporate past queries and provide a dynamic evaluation of the characterization of the speakers", "in bullet point format", "in table format", etc.
 - Clip or copy things you want to translate (For OCR, using Snipping Tool's `Win` + `Shift` + `T` is recommended; I bound it to a macro key.)
+- If the model response seems off, try to reload. The seed is not fixed, and there is a change for getting a bad one.
+- Session history is kept by default so you can do contextual inference if prefered. However a long session will reduce model efficiency. Reload to clear message history (the initial prompt will be load, and all history will be still be kept in the `cache.json`) 
+- You can move or delete `cache.json` based on your needs. If missing, it will always be created in the working directory of where you are running this app
 - Read the following section for more details
 
 #### MacOS
@@ -55,7 +58,8 @@ Beyond basic translation, you can also use the app to learn. Ask the model to fe
 
 #### Settings Menu
 Change the model, cache path here. **Most importantly, customize your initial prompt here.**\
-Reload with settings to apply them
+Initial response can be set and toggled on for additional stability.\
+Reload with settings to apply them.
 
 #### Hotkeys
 - `Shift` + `Enter` to submit manually entered messages
@@ -72,9 +76,15 @@ Change the `alpha` value
 #### Default Scale
 Change the `scale` value
 
+### Issue Diagnosis and Reporting
+- The app creates log files in the internal folder. Take a look to see where the issue may have occured and attach relevant bits to your report. Thank you!
+
 ### Build
-`pyinstaller --onedir -w --add-data "assets:assets" --add-data "external:external" --add-data "config.toml:." --icon=assets\icon.ico --name "Clip Translator" translator.py`
+`pyinstaller --onedir --add-data "assets:assets" --add-data "external:external" --add-data "config.toml:." --icon=assets\icon.ico --name "Clip Translator" -w translator.py`
 - `external` contains a forked copy of CTkMarkdown; it may or may not be necessary in the future (and is therefore not included as a submodule). For now, copy the `.py` file from my other repo and place it there before building. 
+
+## Credits
+Screenshot background: [Justcos@pixabay](https://pixabay.com/illustrations/sunrise-sunset-colours-background-1030593/) 
 
 ## Maintainer's Dev Notes:
 ### Venv
