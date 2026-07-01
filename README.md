@@ -48,7 +48,7 @@ Beyond basic translation, you can also use the app to learn. Ask the model to fe
 - Status lights (blue is on (True), orange is off (False)) (left to right) : 
     - is monitoring clipboard
     - is ready
-    - is busy
+    - is idle (orange then means busy)
 - Buttons (left to right): 
     - clipboard monitoring toggle
     - settings menu toggle

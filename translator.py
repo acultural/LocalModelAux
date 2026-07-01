@@ -12,7 +12,7 @@ logger.setLevel(logging.DEBUG)
 logging_formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
 logging_handler = RotatingFileHandler(
     filename=SRC_DIR/'logs'/'log.log',
-    maxBytes=5000, 
+    maxBytes=10*1024, 
     backupCount=3, 
     encoding="utf-8"
 )
@@ -600,49 +600,59 @@ class App(ctk.CTk):
             self.renderer.set_markdown("... got no response ... ")
 
     def run_in_thread(self):
+        try:
+            # session initialization
+            self.busyness_hint_label.configure(text_color="#FA8C55")
+            response = chat(
+                model=self.model_name,
+                messages=self.messages,
+                think=False,
+                stream=False,
+            )
+            # if (response.done):
+            self.message.delete("1.0","end")
+            self.message.insert("end","SYSTEM READY!","status")
+            self.readiness_hint_label.configure(text_color="#55FAE7")
+            if (self.use_canned_init_response.get()) :
+                self.renderer.set_markdown("""*I'm ready when you are*...""")
+                # renderer.set_markdown(response.message.content)
+            else :
+                if (response.message.content):
+                    self.messages += [{'role': 'assistant', 'content': response.message.content}]
+                    self.renderer.set_markdown(response.message.content)
+            self.busyness_hint_label.configure(text_color="#55FAE7")
+    
+            # perpetural
+            while self.is_running:
+                if (self.is_listening_to_clipboard):
+                    self.armed_hint_label.configure(text_color="#55FAE7")
+                else:
+                    self.armed_hint_label.configure(text_color="#FA8C55")
+                    continue
 
-        # session initialization
-        self.busyness_hint_label.configure(text_color="#FA8C55")
-        response = chat(
-            model=self.model_name,
-            messages=self.messages,
-            think=False,
-            stream=False,
-        )
-        # if (response.done):
-        self.message.delete("1.0","end")
-        self.message.insert("end","SYSTEM READY!","status")
-        self.readiness_hint_label.configure(text_color="#55FAE7")
-        if (self.use_canned_init_response.get()) :
-            self.renderer.set_markdown("""*I'm ready when you are*...""")
-            # renderer.set_markdown(response.message.content)
-        else :
-            if (response.message.content):
-                self.messages += [{'role': 'assistant', 'content': response.message.content}]
-                self.renderer.set_markdown(response.message.content)
-        self.busyness_hint_label.configure(text_color="#55FAE7")
-  
-        # perpetural
-        while self.is_running:
-            if (self.is_listening_to_clipboard):
-                self.armed_hint_label.configure(text_color="#55FAE7")
-            else:
-                self.armed_hint_label.configure(text_color="#FA8C55")
-                continue
+                if self._has_custom_msg:
+                    self.send_request(self.message.get("1.0", "end-1c"))
+                    self._has_custom_msg = False # consume it
+                else:
+                    new_text = pyperclip.paste()
+                    if (self.clipboard_text != new_text) :
+                        self.clipboard_text = new_text
+                        self.message.delete("1.0","end")
+                        self.message.insert("end",self.clipboard_text,"input")
+                        self.adjust_input_height()
+                        self.send_request(self.clipboard_text)
 
-            if self._has_custom_msg:
-                self.send_request(self.message.get("1.0", "end-1c"))
-                self._has_custom_msg = False # consume it
-            else:
-                new_text = pyperclip.paste()
-                if (self.clipboard_text != new_text) :
-                    self.clipboard_text = new_text
-                    self.message.delete("1.0","end")
-                    self.message.insert("end",self.clipboard_text,"input")
-                    self.adjust_input_height()
-                    self.send_request(self.clipboard_text)
-
-            time.sleep(0.01)
+                time.sleep(0.01)
+        except Exception as e:
+            # the thread can end for plenty of reasons,
+            # especially when idling for too long.
+            # for now, just let them propagate instead of masking blindly
+            raise e
+        finally:
+            # no longer ready; the process quits and needs reloading
+            self.readiness_hint_label.configure(text_color="#FA8C55")
+            self.message.delete("1.0","end")
+            self.message.insert("end","PROCESS ENDED | PLEASE RELOAD -->[]<-- | CHECK LOGS FOR DETAILS","status")
 
     # send custom message
     def send_custom_message(self,event):
