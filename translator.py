@@ -53,6 +53,17 @@ import tomlkit
 
 logger.debug(f'import complete')
 
+
+COLOR_MUTE = "#878787"
+COLOR_ACCENT = "#FA7163"
+COLOR_MODE_A = "#FA8C55"
+COLOR_MODE_B = "#55FAE7"
+COLOR_BTN = "#444444"
+COLOR_FRAME = "#353535"
+COLOR_BORDER = "#F5F5F5"
+COLOR_ENTRY = "#232323"
+COLOR_TXT = "#BDBDBD"
+
 class ClassLogger:
     """Logs class methods"""
     def __init__(self, cls, logger=logger, level=logging.DEBUG):
@@ -161,15 +172,26 @@ class App(ctk.CTk):
         self.config["backend"]["init_res"] = self.box_init_res.get("1.0","end")
         self.config["backend"]["use_init_res"] = self.use_canned_init_response.get()
 
-    def _update_config_and_reset(self):
-        self._update_config()
+    def _pause(self):
+        """stops the background thread"""
         self.is_running = False
-        self.busyness_hint_label.configure(text_color="#FA8C55")
-        self.thread.join(1)
+        self.busyness_hint_label.configure(text_color=COLOR_MODE_A)
+        try:
+            self.thread.join(1)
+        except:
+            pass # no thread
+
+    def _reset(self):
+        """resets the background thread"""
+        self._pause()
         self._setup_model()
         self._setup_db()
         self.is_running = True
         self.run()
+
+    def _update_config_and_reset(self):
+        self._update_config()
+        self._reset()
         # TODO: acknowledgement
 
     def _save_config(self):
@@ -298,49 +320,64 @@ class App(ctk.CTk):
         status_line = ctk.CTkFrame(frame_status, fg_color="transparent", height=10)
         status_line.grid(row=0, column=0, padx=10, pady=(3,3), sticky="nsew")
 
+        x_marker = 15
         ## status displays
-        armed_icon_label = ctk.CTkLabel(status_line, text="󰤁", height=8, font=(self.config["ui"]["font"], 14, "bold"), text_color="#878787")
-        armed_icon_label.place(relx=0.0, x=15, rely=0.5, anchor="e")
-        armed_hint_label = ctk.CTkLabel(status_line, text="", height=8, font=(self.config["ui"]["font"], 30), text_color="#FA8C55")
-        armed_hint_label.place(relx=0.0, x=35, rely=0.5, anchor="e")
-
-        readiness_icon_label = ctk.CTkLabel(status_line, text="", height=8, font=(self.config["ui"]["font"], 14, "bold"), text_color="#878787")
-        readiness_icon_label.place(relx=0.0, x=55, rely=0.5, anchor="e")
-        readiness_hint_label = ctk.CTkLabel(status_line, text="", height=8, font=(self.config["ui"]["font"], 30), text_color="#FA8C55")
-        readiness_hint_label.place(relx=0.0, x=75, rely=0.5, anchor="e")
-
-        busyness_icon_label = ctk.CTkLabel(status_line, text="", height=8, font=(self.config["ui"]["font"], 14, "bold"), text_color="#878787")
-        busyness_icon_label.place(relx=0.0, x=95, rely=0.5, anchor="e")
-        busyness_hint_label = ctk.CTkLabel(status_line, text="", height=8, font=(self.config["ui"]["font"], 30), text_color="#55FAE7")
-        busyness_hint_label.place(relx=0.0, x=115, rely=0.5, anchor="e")
+        status_hint_gap = 20
+        armed_icon_label = ctk.CTkLabel(status_line, text="󰤁", height=8, font=(self.config["ui"]["font"], 14, "bold"), text_color=COLOR_MUTE)
+        armed_icon_label.place(relx=0.0, x=x_marker, rely=0.5, anchor="e")
+        x_marker += status_hint_gap
+        armed_hint_label = ctk.CTkLabel(status_line, text="", height=8, font=(self.config["ui"]["font"], 30), text_color=COLOR_MODE_A)
+        armed_hint_label.place(relx=0.0, x=x_marker, rely=0.5, anchor="e")
+        x_marker += status_hint_gap
+        readiness_icon_label = ctk.CTkLabel(status_line, text="", height=8, font=(self.config["ui"]["font"], 14, "bold"), text_color=COLOR_MUTE)
+        readiness_icon_label.place(relx=0.0, x=x_marker, rely=0.5, anchor="e")
+        x_marker += status_hint_gap
+        readiness_hint_label = ctk.CTkLabel(status_line, text="", height=8, font=(self.config["ui"]["font"], 30), text_color=COLOR_MODE_A)
+        readiness_hint_label.place(relx=0.0, x=x_marker, rely=0.5, anchor="e")
+        x_marker += status_hint_gap
+        busyness_icon_label = ctk.CTkLabel(status_line, text="", height=8, font=(self.config["ui"]["font"], 14, "bold"), text_color=COLOR_MUTE)
+        busyness_icon_label.place(relx=0.0, x=x_marker, rely=0.5, anchor="e")
+        x_marker += status_hint_gap
+        busyness_hint_label = ctk.CTkLabel(status_line, text="", height=8, font=(self.config["ui"]["font"], 30), text_color=COLOR_MODE_B)
+        busyness_hint_label.place(relx=0.0, x=x_marker, rely=0.5, anchor="e")
 
         ## status toggle
+        x_marker += 45
         button_toggle_arm = ctk.CTkButton(status_line, text="󰤁", command=self.toggle_arm,
                                         width=30, height=10, font=(self.config["ui"]["font"], 12), 
-                                        fg_color="#444444", hover_color="#FA7163")
-        button_toggle_arm.place(relx=0.0, x=160, rely=0.5, anchor="e")
+                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT)
+        button_toggle_arm.place(relx=0.0, x=x_marker, rely=0.5, anchor="e")
+        x_marker += 40
+        button_toggle_ready = ctk.CTkButton(status_line, text="", command=self.toggle_readiness,
+                                        width=30, height=10, font=(self.config["ui"]["font"], 12), 
+                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT)
+        button_toggle_ready.place(relx=0.0, x=x_marker, rely=0.5, anchor="e")
+        x_marker += 40
         button_toggle_settings = ctk.CTkButton(status_line, text="", command=self.toggle_settings,
                                         width=30, height=10, font=(self.config["ui"]["font"], 12), 
-                                        fg_color="#444444", hover_color="#FA7163")
-        button_toggle_settings.place(relx=0.0, x=200, rely=0.5, anchor="e")
+                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT)
+        button_toggle_settings.place(relx=0.0, x=x_marker, rely=0.5, anchor="e")
 
         ## message history navigation
+        x_marker += 60
         button_prev_msg = ctk.CTkButton(status_line, text="", command=self.get_prev_message, 
                                         width=30, height=10, font=(self.config["ui"]["font"], 12), 
-                                        fg_color="#444444", hover_color="#FA7163")
-        button_prev_msg.place(relx=0.0, x=260, rely=0.5, anchor="e")
+                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT)
+        button_prev_msg.place(relx=0.0, x=x_marker, rely=0.5, anchor="e")
+        x_marker += 40
         button_next_msg = ctk.CTkButton(status_line, text="", command=self.get_next_message, 
                                         width=30, height=10, font=(self.config["ui"]["font"], 12), 
-                                        fg_color="#444444", hover_color="#FA7163")
-        button_next_msg.place(relx=0.0, x=300, rely=0.5, anchor="e")
+                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT)
+        button_next_msg.place(relx=0.0, x=x_marker, rely=0.5, anchor="e")
+        x_marker += 205
         slider_msg = ctk.CTkSlider(status_line, from_=1, to=len(self.db), command=lambda x: self.get_idx_message(int(x)), 
-                                button_color="#444444", button_hover_color="#FA7163")
+                                button_color=COLOR_BTN, button_hover_color=COLOR_ACCENT)
         slider_msg.set(len(self.db))
         slider_msg.configure(number_of_steps=len(self.db)-1)
-        slider_msg.place(relx=0.0, x=505, rely=0.5, anchor="e")
+        slider_msg.place(relx=0.0, x=x_marker, rely=0.5, anchor="e")
 
         ## message input hint
-        message_hint_label = ctk.CTkLabel(status_line, text="󰘶 󰌑", height=8, font=(self.config["ui"]["font"], 20), text_color="#878787")
+        message_hint_label = ctk.CTkLabel(status_line, text="󰘶 󰌑", height=8, font=(self.config["ui"]["font"], 20), text_color=COLOR_MUTE)
         message_hint_label.place(relx=1.0, x=-10, rely=0.5, anchor="e")
 
         # TODO: make into class
@@ -348,41 +385,41 @@ class App(ctk.CTk):
         frame_settings.grid_columnconfigure(0, weight=1)
         frame_settings.grid_rowconfigure(0, weight=1)
         frame_settings.pack(fill="both", expand=False, padx=0, pady=0)
-        frame_settings_inner = ctk.CTkFrame(frame_settings, fg_color="#353535")
+        frame_settings_inner = ctk.CTkFrame(frame_settings, fg_color=COLOR_FRAME)
         frame_settings_inner.grid_columnconfigure(0, weight=1)
         frame_settings_inner.grid_rowconfigure(0, weight=1)
         frame_settings_inner.grid(row=0, column=0, padx=10, pady=(5,0), sticky="nsew",)
         
-        setting_main_label = ctk.CTkLabel(frame_settings_inner, text="SETTINGS", font=(self.config["ui"]["font"], 14), text_color="#BDBDBD")
+        setting_main_label = ctk.CTkLabel(frame_settings_inner, text="SETTINGS", font=(self.config["ui"]["font"], 14), text_color=COLOR_TXT)
         setting_main_label.grid(row=0, column=0, padx=10, pady=(0,0), sticky="ew")
 
         frame_settings_entries = ctk.CTkFrame(frame_settings_inner, fg_color="transparent")
         frame_settings_entries.grid_columnconfigure(1, weight=1)
         frame_settings_entries.grid_rowconfigure(0, weight=1)
         frame_settings_entries.grid(row=1, column=0, padx=10, pady=(0, 0), sticky="nsew")
-        setting_model_label = ctk.CTkLabel(frame_settings_entries, text="Model", height=8, font=(self.config["ui"]["font"], 13), text_color="#BDBDBD")
+        setting_model_label = ctk.CTkLabel(frame_settings_entries, text="Model", height=8, font=(self.config["ui"]["font"], 13), text_color=COLOR_TXT)
         setting_model_label.grid(row=0, column=0, padx=10, pady=(0,0), sticky="w")
         entry_model = ctk.CTkEntry(frame_settings_entries, font=(self.config["ui"]["font"], 14), 
-                                   border_width=0, height=23, fg_color='#232323')
+                                   border_width=0, height=23, fg_color=COLOR_ENTRY)
         
         entry_model.grid(row=0, column=1, padx=10, pady=(0,0), sticky="ew")
-        setting_cache_label = ctk.CTkLabel(frame_settings_entries, text="Cache", font=(self.config["ui"]["font"], 13), text_color="#BDBDBD")
+        setting_cache_label = ctk.CTkLabel(frame_settings_entries, text="Cache", font=(self.config["ui"]["font"], 13), text_color=COLOR_TXT)
         setting_cache_label.grid(row=1, column=0, padx=10, pady=(0,0), sticky="w")
         entry_cache = ctk.CTkEntry(frame_settings_entries, font=(self.config["ui"]["font"], 14), 
-                                   border_width=0, height=23, fg_color='#232323')
+                                   border_width=0, height=23, fg_color=COLOR_ENTRY)
         entry_cache.grid(row=1, column=1, padx=10, pady=(0,0), sticky="ew")
 
         frame_settings_boxes = ctk.CTkFrame(frame_settings_inner, fg_color="transparent")
         frame_settings_boxes.grid_columnconfigure((0,1), weight=1)
         frame_settings_boxes.grid_rowconfigure(0, weight=1)
         frame_settings_boxes.grid(row=2, column=0, padx=10, pady=(0,10), sticky="nsew")
-        setting_input_label = ctk.CTkLabel(frame_settings_boxes, text="Init Input", font=(self.config["ui"]["font"], 13), text_color="#BDBDBD")
+        setting_input_label = ctk.CTkLabel(frame_settings_boxes, text="Init Input", font=(self.config["ui"]["font"], 13), text_color=COLOR_TXT)
         setting_input_label.grid(row=0, column=0, padx=(0,3), pady=(0,0), sticky="ew")
         box_init_msg = ctk.CTkTextbox(frame_settings_boxes,
                                       font=(self.config["ui"]["font"], 14), 
-                                      #  border_color="#F5F5F5", border_width=2,
+                                      #  border_color=COLOR_BORDER, border_width=2,
                                       wrap='char',
-                                      fg_color="#232323",
+                                      fg_color=COLOR_ENTRY,
                                       height=100
                                       )
         box_init_msg.insert('end',self.initializing_message['content'])
@@ -391,7 +428,7 @@ class App(ctk.CTk):
             master=frame_settings_boxes,
             text="Init Response",
             font=(self.config["ui"]["font"], 13), 
-            text_color="#BDBDBD",
+            text_color=COLOR_TXT,
             variable=self.use_canned_init_response,
             onvalue=True,
             offvalue=False,
@@ -400,17 +437,17 @@ class App(ctk.CTk):
             checkbox_width=18,
             corner_radius=6,
             border_width=1,
-            hover_color="#878787",
-            fg_color="#FA7163",
+            hover_color=COLOR_MUTE,
+            fg_color=COLOR_ACCENT,
             width=10,
             height=10,
         )
         checkbox_init_res.grid(row=0, column=1, padx=(0,10), pady=(0,0))
         box_init_res = ctk.CTkTextbox(frame_settings_boxes,
                                       font=(self.config["ui"]["font"], 14), 
-                                      #  border_color="#F5F5F5", border_width=2,
+                                      #  border_color=COLOR_BORDER, border_width=2,
                                       wrap='char',
-                                      fg_color="#232323",
+                                      fg_color=COLOR_ENTRY,
                                       height=100
                                       )
         box_init_res.grid(row=1, column=1, padx=(3,0), pady=(0,0), sticky="ew")
@@ -423,15 +460,15 @@ class App(ctk.CTk):
         frame_settings_buttons.grid(row=3, column=0, padx=10, pady=(0,10), sticky="nsew")
         button_revert_settings = ctk.CTkButton(frame_settings_buttons, text="Revert Settings", command=self._revert_config,
                                         height=12, font=(self.config["ui"]["font"], 12), 
-                                        fg_color="#444444", hover_color="#FA7163")
+                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT)
         button_revert_settings.grid(row=0, column=0, padx=(0,3), pady=(0,0), sticky="ew")
         button_save_settings = ctk.CTkButton(frame_settings_buttons, text="Save New Settings", command=self._save_config,
                                         height=12, font=(self.config["ui"]["font"], 12), 
-                                        fg_color="#444444", hover_color="#FA7163")
+                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT)
         button_save_settings.grid(row=0, column=1, padx=(3,3), pady=(0,0), sticky="ew")
         button_reload = ctk.CTkButton(frame_settings_buttons, text="Reload With Settings", command=self._update_config_and_reset,
                                         height=12, font=(self.config["ui"]["font"], 12), 
-                                        fg_color="#444444", hover_color="#FA7163")
+                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT)
         button_reload.grid(row=0, column=2, padx=(3,0), pady=(0,0), sticky="ew")
 
 
@@ -441,12 +478,12 @@ class App(ctk.CTk):
         frame_message.grid_rowconfigure(0, weight=1)
         frame_message.pack(fill="both", expand=False, padx=0, pady=0)
         message = ctk.CTkTextbox(frame_message, font=(self.config["ui"]["font"], 16), 
-                                #  border_color="#F5F5F5", border_width=2,
+                                #  border_color=COLOR_BORDER, border_width=2,
                                 wrap='char',
-                                fg_color="#353535",
+                                fg_color=COLOR_FRAME,
                                 )
-        message.tag_config("status", foreground="#FA8C55") # #55C3FA
-        message.tag_config("history", foreground="#878787") # #55C3FA
+        message.tag_config("status", foreground=COLOR_MODE_A)
+        message.tag_config("history", foreground=COLOR_MUTE)
         message.tag_config("input")
         message.insert("end","BOOTING UP...","status")
         message.grid(row=0, column=0, padx=10, pady=(0,10), sticky="ew")
@@ -460,6 +497,7 @@ class App(ctk.CTk):
         self.busyness_hint_label = busyness_hint_label
         self.readiness_hint_label = readiness_hint_label
         self.armed_hint_label = armed_hint_label
+        self.button_toggle_ready = button_toggle_ready
         self.frame_message = frame_message
         self.frame_status = frame_status
         self.frame_settings = frame_settings
@@ -479,11 +517,20 @@ class App(ctk.CTk):
         #    When only one event can be used (to save computation), Release feels more responsive
 
         
-
     def toggle_arm(self):
         self.is_listening_to_clipboard = not self.is_listening_to_clipboard
         # refresh to avoid reading the content before arming
         self.clipboard_text = pyperclip.paste()
+
+    def toggle_readiness(self):
+        if self.is_running:
+            self._pause()
+            self.readiness_hint_label.configure(text_color=COLOR_MODE_B)
+            self.button_toggle_ready.configure(text="")
+        else:
+            self._reset()
+            self.readiness_hint_label.configure(text_color=COLOR_ACCENT)
+            self.button_toggle_ready.configure(text="")
 
     def toggle_settings(self):
         if (self.frame_settings.winfo_viewable()):
@@ -570,7 +617,7 @@ class App(ctk.CTk):
 
     def send_request(self,msg):
         new_input = {'role': 'user', 'content': msg}
-        self.busyness_hint_label.configure(text_color="#FA8C55")
+        self.busyness_hint_label.configure(text_color=COLOR_MODE_A)
 
         response = chat(
             model=self.model_name,
@@ -578,7 +625,7 @@ class App(ctk.CTk):
             think=False,
             stream=False,
         )
-        self.busyness_hint_label.configure(text_color="#55FAE7")
+        self.busyness_hint_label.configure(text_color=COLOR_MODE_B)
 
         if (response.message.content):
             new_response = {'role': 'assistant', 'content': response.message.content}
@@ -602,7 +649,7 @@ class App(ctk.CTk):
     def run_in_thread(self):
         try:
             # session initialization
-            self.busyness_hint_label.configure(text_color="#FA8C55")
+            self.busyness_hint_label.configure(text_color=COLOR_MODE_A)
             response = chat(
                 model=self.model_name,
                 messages=self.messages,
@@ -612,7 +659,7 @@ class App(ctk.CTk):
             # if (response.done):
             self.message.delete("1.0","end")
             self.message.insert("end","SYSTEM READY!","status")
-            self.readiness_hint_label.configure(text_color="#55FAE7")
+            self.readiness_hint_label.configure(text_color=COLOR_MODE_B)
             if (self.use_canned_init_response.get()) :
                 self.renderer.set_markdown("""*I'm ready when you are*...""")
                 # renderer.set_markdown(response.message.content)
@@ -620,14 +667,14 @@ class App(ctk.CTk):
                 if (response.message.content):
                     self.messages += [{'role': 'assistant', 'content': response.message.content}]
                     self.renderer.set_markdown(response.message.content)
-            self.busyness_hint_label.configure(text_color="#55FAE7")
+            self.busyness_hint_label.configure(text_color=COLOR_MODE_B)
     
             # perpetural
             while self.is_running:
                 if (self.is_listening_to_clipboard):
-                    self.armed_hint_label.configure(text_color="#55FAE7")
+                    self.armed_hint_label.configure(text_color=COLOR_MODE_B)
                 else:
-                    self.armed_hint_label.configure(text_color="#FA8C55")
+                    self.armed_hint_label.configure(text_color=COLOR_MODE_A)
                     continue
 
                 if self._has_custom_msg:
@@ -650,9 +697,9 @@ class App(ctk.CTk):
             raise e
         finally:
             # no longer ready; the process quits and needs reloading
-            self.readiness_hint_label.configure(text_color="#FA8C55")
+            self.readiness_hint_label.configure(text_color=COLOR_MODE_A)
             self.message.delete("1.0","end")
-            self.message.insert("end","PROCESS ENDED | PLEASE RELOAD -->[]<-- | CHECK LOGS FOR DETAILS","status")
+            self.message.insert("end","PROCESS PAUSED | RELOAD -->[]<-- HERE | IF UNEXPECTED: CHECK LOGS FOR DETAILS","status")
 
     # send custom message
     def send_custom_message(self,event):
