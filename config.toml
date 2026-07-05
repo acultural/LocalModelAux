@@ -2,6 +2,7 @@
 scale = 1.0
 font = "Monofur Nerd Font Mono"
 alpha = 0.9
+theme = "system"
 
 [paths]
 cache = "cache.json"

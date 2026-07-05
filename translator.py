@@ -58,11 +58,11 @@ COLOR_MUTE = "#878787"
 COLOR_ACCENT = "#FA7163"
 COLOR_MODE_A = "#FA8C55"
 COLOR_MODE_B = "#55FAE7"
-COLOR_BTN = "#444444"
-COLOR_FRAME = "#353535"
+COLOR_BTN = ("#D2D2D2","#444444")
+COLOR_FRAME = ("#F8F8F8","#353535")
 COLOR_BORDER = "#F5F5F5"
-COLOR_ENTRY = "#232323"
-COLOR_TXT = "#BDBDBD"
+COLOR_ENTRY = ("#FEFEFE","#232323")
+COLOR_TXT = ("#565656","#BDBDBD")
 
 class ClassLogger:
     """Logs class methods"""
@@ -237,9 +237,21 @@ class App(ctk.CTk):
         # title bar
         self.title('Clip Translator')
         self.iconbitmap(SRC_DIR/'assets'/'icon.ico')
-        self._title_bar_customization()
+        # self._title_bar_customization()
+        self._apply_theme()
+        ctk.AppearanceModeTracker.add(self._apply_theme)
+        ctk.AppearanceModeTracker.set_appearance_mode(self.config["ui"]["theme"])
 
-    def _title_bar_customization(self):
+    def _apply_theme(self, mode=None):
+        """theme changes that are not automatically managed"""
+        mode = ctk.get_appearance_mode()
+        if (mode == "Dark"):
+            self._title_bar_customization(0x00222222)
+        else:
+            self._title_bar_customization(0x00eaeaea)
+        
+
+    def _title_bar_customization(self, color):
         # title bar customizaton
         # only works for win 11
         # https://github.com/TomSchimansky/CustomTkinter/discussions/1011
@@ -253,7 +265,7 @@ class App(ctk.CTk):
             TITLE COLOR = 36
             """
             DWMWA_ATTRIBUTE = 35
-            COLOR = 0x00222222 # color should be in hex order: 0x00bbggrr
+            COLOR = color # color should be in hex order: 0x00bbggrr
             res = windll.dwmapi.DwmSetWindowAttribute(HWND, DWMWA_ATTRIBUTE, byref(c_int(COLOR)), sizeof(c_int))
             if (res !=0 ) :
                 # print(f"trying to set title bar color but failed, with error code: {res}. This is okay.")
@@ -344,30 +356,30 @@ class App(ctk.CTk):
         ## status toggle
         x_marker += 45
         button_toggle_arm = ctk.CTkButton(status_line, text="󰤁", command=self.toggle_arm,
-                                        width=30, height=10, font=(self.config["ui"]["font"], 12), 
-                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT)
+                                        width=30, height=10, font=(self.config["ui"]["font"], 12, "bold"), 
+                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT, text_color=COLOR_TXT)
         button_toggle_arm.place(relx=0.0, x=x_marker, rely=0.5, anchor="e")
         x_marker += 40
-        button_toggle_ready = ctk.CTkButton(status_line, text="", command=self.toggle_readiness,
+        button_toggle_ready = ctk.CTkButton(status_line, text="", command=self.toggle_readiness,
                                         width=30, height=10, font=(self.config["ui"]["font"], 12), 
-                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT)
+                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT, text_color=COLOR_TXT)
         button_toggle_ready.place(relx=0.0, x=x_marker, rely=0.5, anchor="e")
         x_marker += 40
         button_toggle_settings = ctk.CTkButton(status_line, text="", command=self.toggle_settings,
                                         width=30, height=10, font=(self.config["ui"]["font"], 12), 
-                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT)
+                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT, text_color=COLOR_TXT)
         button_toggle_settings.place(relx=0.0, x=x_marker, rely=0.5, anchor="e")
 
         ## message history navigation
         x_marker += 60
         button_prev_msg = ctk.CTkButton(status_line, text="", command=self.get_prev_message, 
                                         width=30, height=10, font=(self.config["ui"]["font"], 12), 
-                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT)
+                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT, text_color=COLOR_TXT)
         button_prev_msg.place(relx=0.0, x=x_marker, rely=0.5, anchor="e")
         x_marker += 40
         button_next_msg = ctk.CTkButton(status_line, text="", command=self.get_next_message, 
                                         width=30, height=10, font=(self.config["ui"]["font"], 12), 
-                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT)
+                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT, text_color=COLOR_TXT)
         button_next_msg.place(relx=0.0, x=x_marker, rely=0.5, anchor="e")
         x_marker += 205
         slider_msg = ctk.CTkSlider(status_line, from_=1, to=len(self.db), command=lambda x: self.get_idx_message(int(x)), 
@@ -460,15 +472,15 @@ class App(ctk.CTk):
         frame_settings_buttons.grid(row=3, column=0, padx=10, pady=(0,10), sticky="nsew")
         button_revert_settings = ctk.CTkButton(frame_settings_buttons, text="Revert Settings", command=self._revert_config,
                                         height=12, font=(self.config["ui"]["font"], 12), 
-                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT)
+                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT, text_color=COLOR_TXT)
         button_revert_settings.grid(row=0, column=0, padx=(0,3), pady=(0,0), sticky="ew")
         button_save_settings = ctk.CTkButton(frame_settings_buttons, text="Save New Settings", command=self._save_config,
                                         height=12, font=(self.config["ui"]["font"], 12), 
-                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT)
+                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT, text_color=COLOR_TXT)
         button_save_settings.grid(row=0, column=1, padx=(3,3), pady=(0,0), sticky="ew")
         button_reload = ctk.CTkButton(frame_settings_buttons, text="Reload With Settings", command=self._update_config_and_reset,
                                         height=12, font=(self.config["ui"]["font"], 12), 
-                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT)
+                                        fg_color=COLOR_BTN, hover_color=COLOR_ACCENT, text_color=COLOR_TXT)
         button_reload.grid(row=0, column=2, padx=(3,0), pady=(0,0), sticky="ew")
 
 
@@ -526,11 +538,9 @@ class App(ctk.CTk):
         if self.is_running:
             self._pause()
             self.readiness_hint_label.configure(text_color=COLOR_MODE_B)
-            self.button_toggle_ready.configure(text="")
         else:
             self._reset()
             self.readiness_hint_label.configure(text_color=COLOR_ACCENT)
-            self.button_toggle_ready.configure(text="")
 
     def toggle_settings(self):
         if (self.frame_settings.winfo_viewable()):
@@ -697,9 +707,10 @@ class App(ctk.CTk):
             raise e
         finally:
             # no longer ready; the process quits and needs reloading
+            self.is_running = False
             self.readiness_hint_label.configure(text_color=COLOR_MODE_A)
             self.message.delete("1.0","end")
-            self.message.insert("end","PROCESS PAUSED | RELOAD -->[]<-- HERE | IF UNEXPECTED: CHECK LOGS FOR DETAILS","status")
+            self.message.insert("end","PROCESS PAUSED | RELOAD -->[]<-- HERE | IF UNEXPECTED: CHECK LOGS FOR DETAILS","status")
 
     # send custom message
     def send_custom_message(self,event):
