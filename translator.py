@@ -141,7 +141,7 @@ class App(ctk.CTk):
         self._setup_layout()
 
         # connect to backend and start the backend functional loop
-        self.thread = threading.Thread(target=self.run_in_thread, daemon=True)
+        # self.thread = threading.Thread(target=self.run_in_thread, daemon=True)
         self.run()
 
     def _setup_model(self):
@@ -178,8 +178,10 @@ class App(ctk.CTk):
         self.busyness_hint_label.configure(text_color=COLOR_MODE_A)
         try:
             self.thread.join(1)
+            # print([self.thread, self.thread.is_alive()])
         except:
             pass # no thread
+        self._unready()
 
     def _reset(self):
         """resets the background thread"""
@@ -704,13 +706,16 @@ class App(ctk.CTk):
             # the thread can end for plenty of reasons,
             # especially when idling for too long.
             # for now, just let them propagate instead of masking blindly
+            self._unready()
             raise e
-        finally:
-            # no longer ready; the process quits and needs reloading
-            self.is_running = False
-            self.readiness_hint_label.configure(text_color=COLOR_MODE_A)
-            self.message.delete("1.0","end")
-            self.message.insert("end","PROCESS PAUSED | RELOAD -->[]<-- HERE | IF UNEXPECTED: CHECK LOGS FOR DETAILS","status")
+
+
+    def _unready(self):
+        # no longer ready; the process quits and needs reloading
+        self.is_running = False
+        self.readiness_hint_label.configure(text_color=COLOR_MODE_A)
+        self.message.delete("1.0","end")
+        self.message.insert("end","PROCESS PAUSED | RELOAD -->[]<-- HERE | IF UNEXPECTED: CHECK LOGS FOR DETAILS","status")
 
     # send custom message
     def send_custom_message(self,event):
