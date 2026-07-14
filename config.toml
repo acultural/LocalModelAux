@@ -7,6 +7,10 @@ theme = "system"
 [paths]
 cache = "cache.json"
 
+[plugin]
+ocr_path = '..\TextCap-Daemon\TextCap-Daemon.exe'
+use_ocr = true
+
 [backend]
 model_name = "gemma4"
 

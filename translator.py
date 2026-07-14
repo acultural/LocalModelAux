@@ -27,7 +27,6 @@ logger.info(f'{platform.system()}:{platform.release()}')
 # additional logging setup
 import functools
 
-
 # ollama backend access
 from ollama import chat
 
@@ -47,6 +46,7 @@ import customtkinter as ctk
 # tasking
 import threading
 import time
+import queue
 
 # config management
 import tomlkit
@@ -80,7 +80,7 @@ class ClassLogger:
 
         # adds logging to class methods
         for name, method in self.cls.__dict__.items():
-            if callable(method) and not name.startswith('__'):
+            if callable(method) and not name.startswith('__') and not hasattr(method,"_nolog"):
                 # print(name, method)
                 setattr(self.cls, name, self.log_method(method))
         return self.cls(*args, **kwargs)
@@ -106,6 +106,11 @@ class ClassLogger:
             return result
         return wrapper
 
+def nolog(func):
+    """decorator for skipping logs"""
+    func._nolog = True
+    return func
+
 logger.debug(f'post classlogger code')
 
 @ClassLogger
@@ -125,11 +130,12 @@ class App(ctk.CTk):
 
         # status and state init
         self.is_running = True
-        self._has_custom_msg = False
+        self.is_ready = False
         self.is_listening_to_clipboard = True
         self.clipboard_text = pyperclip.paste() # TODO: below
         # above: after idling, this (not here) can sometimes throw an error;
         # try to catch and handle it.
+        self.query_text = ""
         self.messages = []
 
         # model_selection
@@ -141,8 +147,11 @@ class App(ctk.CTk):
         self._setup_layout()
 
         # connect to backend and start the backend functional loop
+        self.query_queue = queue.Queue(8)
         # self.thread = threading.Thread(target=self.run_in_thread, daemon=True)
         self.run()
+        # start the gui update loop
+        self.after(100,self._update_handler)
 
     def _setup_model(self):
         self.model_name = self.config["backend"]["model_name"]
@@ -177,7 +186,9 @@ class App(ctk.CTk):
         self.is_running = False
         self.busyness_hint_label.configure(text_color=COLOR_MODE_A)
         try:
-            self.thread.join(1)
+            if hasattr(self,"ocr_process"):
+                self.ocr_process.terminate()
+            self.thread.join()
             # print([self.thread, self.thread.is_alive()])
         except:
             pass # no thread
@@ -539,10 +550,8 @@ class App(ctk.CTk):
     def toggle_readiness(self):
         if self.is_running:
             self._pause()
-            self.readiness_hint_label.configure(text_color=COLOR_MODE_B)
         else:
             self._reset()
-            self.readiness_hint_label.configure(text_color=COLOR_ACCENT)
 
     def toggle_settings(self):
         if (self.frame_settings.winfo_viewable()):
@@ -658,6 +667,33 @@ class App(ctk.CTk):
         else:
             self.renderer.set_markdown("... got no response ... ")
 
+    def run_in_ocr_thread(self,query_queue):
+        while self.is_running:
+            if self.ocr_process.poll() is not None:
+                break # end the thread if the process is no more 
+            if self.ocr_process.stdout:
+                line = self.ocr_process.stdout.readline()
+                if self.is_listening_to_clipboard:
+                    if (len(line.strip())>0): # skip empty lines
+                        query_queue.put(line.strip())
+        self.is_running = False
+        logger.info("exiting the ocr_thread")
+
+    def run_in_clipboard_thread(self,query_queue):
+        # prevent triggering with old clipboard content
+        self.query_text = self.clipboard_text
+        while self.is_running:
+            new_text = pyperclip.paste()
+            if self.is_listening_to_clipboard:
+                if (len(new_text.strip())>0): # skip empty lines
+                    if (self.clipboard_text != new_text) :
+                        self.clipboard_text = new_text
+                        query_queue.put(new_text.strip())
+            # clipboard requires polling
+            time.sleep(0.05)
+        logger.info("exiting the ocr_thread")
+                    
+
     def run_in_thread(self):
         try:
             # session initialization
@@ -671,7 +707,7 @@ class App(ctk.CTk):
             # if (response.done):
             self.message.delete("1.0","end")
             self.message.insert("end","SYSTEM READY!","status")
-            self.readiness_hint_label.configure(text_color=COLOR_MODE_B)
+            # self.readiness_hint_label.configure(text_color=COLOR_MODE_B)
             if (self.use_canned_init_response.get()) :
                 self.renderer.set_markdown("""*I'm ready when you are*...""")
                 # renderer.set_markdown(response.message.content)
@@ -679,35 +715,121 @@ class App(ctk.CTk):
                 if (response.message.content):
                     self.messages += [{'role': 'assistant', 'content': response.message.content}]
                     self.renderer.set_markdown(response.message.content)
-            self.busyness_hint_label.configure(text_color=COLOR_MODE_B)
+            # self.busyness_hint_label.configure(text_color=COLOR_MODE_B)
     
             # perpetural
+            use_ocr_plugin = False
+            want_ocr_plugin = False
+            try:
+                if self.config["plugin"]["use_ocr"]:
+                    use_ocr_plugin = True
+                    want_ocr_plugin = True
+            except:
+                pass
+            if use_ocr_plugin:
+                ocr_plugin_path = None
+                try:
+                    ocr_plugin_path = pathlib.Path(self.config["plugin"]["ocr_path"])
+                    if not ocr_plugin_path.exists():
+                        ocr_plugin_path = None
+                        logger.error("no valid path found for ocr process")
+                except:
+                    logger.error("no path found for ocr process")
+                    use_ocr_plugin = False
+                # setup ocr
+                if ocr_plugin_path:
+                    logger.info(f"running with ocr_plugin path: {ocr_plugin_path}")
+                    import os
+                    from subprocess import Popen, DEVNULL, PIPE, CalledProcessError, TimeoutExpired
+                    env_vars = os.environ.copy()
+                    env_vars["ACULTURAL_TEXTCAP_CONTEXT"] = "CLIP_TRANSLATOR"
+                    self.ocr_process = Popen([ocr_plugin_path],
+                        stdout=PIPE,
+                        stderr=DEVNULL, # ignored
+                        stdin=DEVNULL, # ignored
+                        env=env_vars,
+                        # bufsize=1, 
+                        universal_newlines=True
+                        )
+                    self.ocr_thread = threading.Thread(target=self.run_in_ocr_thread, args=(self.query_queue,), daemon=True)
+                    self.ocr_thread.start()
+
+                    # confirm ocr status
+                    ocr_boot_timeout = 30
+                    ocr_boot_max_tries = 1
+                    ocr_boot_current_tries = 0
+                    while self.is_running:
+                        try:
+                            line = self.query_queue.get(timeout=ocr_boot_timeout)
+                            # work start
+                            if (line == "ready"):
+                                logger.info("ocr_plugin ready")
+                                break
+                            # work end
+                        except queue.Empty:
+                            ocr_boot_current_tries += 1
+                            logger.debug(f"ocr_plugin not ready in {ocr_boot_timeout*ocr_boot_current_tries} seconds...")
+                            if ocr_boot_current_tries >= ocr_boot_max_tries:
+                                logger.debug("ocr_plugin timed out")
+                                self.ocr_process.terminate()
+                                try:
+                                    self.ocr_process.wait(timeout=5)
+                                except TimeoutExpired:
+                                    logger.debug("ocr_plugin process did not terminate cleanly; attempting to kill")
+                                    self.ocr_process.kill()
+                                    self.ocr_process.wait()
+                                    logger.debug("ocr_plugin process forcefully killed")
+                                use_ocr_plugin = False
+                                break
+                            continue
+                    # unused; might use 
+                    # if self.ocr_process.returncode != 0:
+                    #     raise CalledProcessError(ocr_process.returncode, ocr_process.args)
+            if not use_ocr_plugin:
+                if want_ocr_plugin:
+                    logger.info("ocr plugin did not initialize; falling back to using clipboard")
+                self.clipboard_thread = threading.Thread(target=self.run_in_clipboard_thread, args=(self.query_queue,), daemon=True)
+                self.clipboard_thread.start()
+
+            # run the backend thread
+            self.is_ready = True
             while self.is_running:
-                if (self.is_listening_to_clipboard):
-                    self.armed_hint_label.configure(text_color=COLOR_MODE_B)
-                else:
-                    self.armed_hint_label.configure(text_color=COLOR_MODE_A)
+                # new_text = self.query_text
+                try:
+                    new_text = self.query_queue.get(timeout=1)
+                    if (self.query_text != new_text) :
+                        self.query_text = new_text
+                        self.message.delete("1.0","end")
+                        self.message.insert("end",self.query_text,"input")
+                        self.adjust_input_height()
+                        self.send_request(self.query_text)
+                    # time.sleep(1) # for debug: simulates work and frees cpu
+                except queue.Empty:
                     continue
 
-                if self._has_custom_msg:
-                    self.send_request(self.message.get("1.0", "end-1c"))
-                    self._has_custom_msg = False # consume it
-                else:
-                    new_text = pyperclip.paste()
-                    if (self.clipboard_text != new_text) :
-                        self.clipboard_text = new_text
-                        self.message.delete("1.0","end")
-                        self.message.insert("end",self.clipboard_text,"input")
-                        self.adjust_input_height()
-                        self.send_request(self.clipboard_text)
 
-                time.sleep(0.01)
+            
         except Exception as e:
             # the thread can end for plenty of reasons,
             # especially when idling for too long.
             # for now, just let them propagate instead of masking blindly
             self._unready()
             raise e
+        finally:
+            logger.info("exiting backend_thread: cleanup start...")
+            self.is_ready = False
+            self.is_running = False
+            if hasattr(self,"ocr_process"):
+                logger.info("exiting backend_thread: cleaning up ocr_thread")
+                self.ocr_process.terminate()
+                self.ocr_process.wait()
+            if hasattr(self,"ocr_thread"):
+                logger.info("exiting backend_thread: cleaning up ocr_thread")
+                self.ocr_thread.join()
+            if hasattr(self,"clipboard_thread"):
+                logger.info("exiting backend_thread: cleaning up clipboard_thread")
+                self.clipboard_thread.join()
+            logger.info("exiting backend_thread: cleanup done!")
 
 
     def _unready(self):
@@ -722,13 +844,51 @@ class App(ctk.CTk):
         # print("messaging")
         # print(message.get("1.0", "end-1c"))
         # print(event)
-        self._has_custom_msg = True
-        # self.send_request(self.message.get("1.0", "end-1c")) # let thread handle it so ui does not block
+
+        # let thread handle it so ui does not block
+        self.query_queue.put(self.message.get("1.0", "end-1c"))
         return "break" # this prevents further bound functions from being invoked. (tkinter inline doc)
 
     def run(self):
         self.thread = threading.Thread(target=self.run_in_thread, daemon=True)
         self.thread.start()
+
+    @nolog
+    def _update_handler(self):
+        """A self scheduling gui update handler
+
+        Note: double underscore to escape logging
+        """
+        if (self.is_listening_to_clipboard):
+            self.armed_hint_label.configure(text_color=COLOR_MODE_B)
+        else:
+            self.armed_hint_label.configure(text_color=COLOR_MODE_A)
+        if (self.is_ready):
+            self.readiness_hint_label.configure(text_color=COLOR_MODE_B)
+        else:
+            self.readiness_hint_label.configure(text_color=COLOR_MODE_A)
+
+        self.after(100,self._update_handler)
+
+    def destroy(self):
+        logger.info("exiting...")
+        self.is_running = False
+        if hasattr(self,"ocr_process"):
+            logger.info("exiting: cleaning up ocr_process")
+            self.ocr_process.terminate()
+            self.ocr_process.wait()
+        if hasattr(self,"ocr_thread"):
+            logger.info("exiting: cleaning up ocr_thread")
+            self.ocr_thread.join()
+        if hasattr(self,"clipboard_thread"):
+            logger.info("exiting backend_thread: cleaning up clipboard_thread")
+            self.clipboard_thread.join()
+        if hasattr(self,"thread"):
+            logger.info("exiting: cleaning up backend_thread")
+            self.thread.join()
+        logger.info("all done!")
+        super().destroy()
+        
 
 logger.debug(f'post app code')
 
@@ -741,13 +901,14 @@ app.mainloop()
 
 
 
-# Below are some reference code snippets
+# Response streaming: requires the main display to allow efficient appending and re-rendering
+# For this task, it seems unnecessarily costly 
+# Although, a version where sections/lines are rendered in as they arrive, instead of char by char,
+# can be considered.
 
-
-# Response streaming
 # stream = chat(
 #     model='gemma4',
-#     messages=[{'role': 'user', 'content': r"Hi! I'm playing a text heavy game in Japanese, its original language. Would you be able to help with translating some dialogues and instructions into english for me? The text will be extracted via OCR, so ask me to verify if you find potential errors. Otherwise, for now, please limit your response contents to a few translation options, a romanji representation, and a glossary for 2 or fewer vocabs of your choosing (select by real life usefullness) in your response? I'd like to learn a few words at a time. (Please also explain the word form if it differs from the dictionaty form.) Thank you!"
+#     messages=[{'role': 'user', 'content': r"Hi!"
 #                }],
 #     think=False,
 #     stream=True,

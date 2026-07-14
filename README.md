@@ -27,16 +27,18 @@ Beyond basic translation, you can also use the app to learn. Ask the model to fe
     - For fast response, strictly limit output in your prompt with phrases like "only include ...", "...\<a number\> or fewer ...\<something\>" and "do not include additional notes unless I ask."
     - For more nuanced (but predictable) response, reduce restrictive phrasings but add more suggestions like "include a lexical breakdown", "include a phonetic guide", "give me some pointers regarding the grammar rules involved", "incorporate past queries and provide a dynamic evaluation of the characterization of the speakers", "in bullet point format", "in table format", etc.
 - Clip or copy things you want to translate (For OCR, using Snipping Tool's `Win` + `Shift` + `T` is recommended; I bound it to a macro key.)
+    - **NEW** Use [TextCap](https://github.com/acultural/ScreenCapture) for easier ocr. In `config.toml`, set `use_ocr` to `true` and provide a valid `ocr_path` to the executable.
 - If the model response seems off, try to reload. The seed is not fixed, and there is a change for getting a bad one.
 - Session history is kept by default so you can do contextual inference if prefered. However a long session will reduce model efficiency. Reload to clear message history (the initial prompt will be load, and all history will be still be kept in the `cache.json`) 
 - You can move or delete `cache.json` based on your needs. If missing, it will always be created in the working directory of where you are running this app
+- **Note**: first launch can take some time 
 - Read the following section for more details
 
 #### MacOS
-- Untested
+- Untested/Unbuilt
 
 #### Linux
-- Untested
+- Untested/Unbuilt
 
 ### UI and Controls
 #### Main GUI
@@ -46,11 +48,12 @@ Beyond basic translation, you can also use the app to learn. Ask the model to fe
 
 #### Status Bar
 - Status lights (blue is on (True), orange is off (False)) (left to right) : 
-    - is monitoring clipboard
-    - is ready
-    - is idle (orange then means busy)
+    - is monitoring clipboard / ocr output
+    - is backend ready
+    - is backend idle (orange then means busy)
 - Buttons (left to right): 
     - clipboard monitoring toggle
+    - pause/restart toggle
     - settings menu toggle
     - previous query
     - next query
